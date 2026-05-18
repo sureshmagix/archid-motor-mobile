@@ -1,7 +1,7 @@
 export const MQTT_CONFIG = {
-  brokerUrl: 'wss://archidtech.in:9443',
+  brokerUrl: 'wss://mqtt.archidtech.in:443',
   path: '/mqtt',
-  username: 'admin',
+  username: 'archiduser',
   password: 'suresh123',
 
   reconnectPeriod: 5000,
