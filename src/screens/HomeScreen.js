@@ -1,24 +1,53 @@
-import React from 'react';
-import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
 import HeaderBar from '../components/HeaderBar';
 import MotorCard from '../components/MotorCard';
 import MotorPumpIcon from '../components/MotorPumpIcon';
 import StatusCard from '../components/StatusCard';
-import {COLORS, statusColor} from '../constants/colors';
-import {useAuth} from '../context/AuthContext';
-import {useMqtt} from '../context/MqttContext';
 
-const HomeScreen = ({navigation}) => {
-  const {logout} = useAuth();
-  const {motors, connectionStatus, connectionError, lastMessage, selectMotor} = useMqtt();
+import { COLORS, statusColor } from '../constants/colors';
+import { useAuth } from '../context/AuthContext';
+import { useMqtt } from '../context/MqttContext';
+import { mqttService } from '../services/mqttService';
+
+const HomeScreen = ({ navigation }) => {
+  const { logout } = useAuth();
+  const { motors, connectionStatus, connectionError, lastMessage, selectMotor } =
+    useMqtt();
+
+  const homeVisitPublishedRef = useRef(false);
+
+  useEffect(() => {
+    if (connectionStatus === 'CONNECTED' && !homeVisitPublishedRef.current) {
+      mqttService.publish('archidtech/mobile/home/visit', {
+        event: 'HOME_SCREEN_OPENED',
+        screen: 'HomeScreen',
+        source: 'archid-motor-mobile',
+        timestamp: new Date().toISOString(),
+      });
+
+      homeVisitPublishedRef.current = true;
+    }
+
+    if (connectionStatus !== 'CONNECTED') {
+      homeVisitPublishedRef.current = false;
+    }
+  }, [connectionStatus]);
 
   const runningCount = motors.filter(motor => motor.status === 'ON').length;
   const faultCount = motors.filter(motor => motor.status === 'FAULT').length;
-  const overallColor = faultCount > 0 ? COLORS.warning : runningCount > 0 ? COLORS.success : COLORS.off;
+
+  const overallColor =
+    faultCount > 0
+      ? COLORS.warning
+      : runningCount > 0
+        ? COLORS.success
+        : COLORS.off;
 
   const handleMotorPress = motor => {
     selectMotor(motor);
-    navigation.navigate('MotorDetail', {motorId: motor.id});
+    navigation.navigate('MotorDetail', { motorId: motor.id });
   };
 
   return (
@@ -35,29 +64,40 @@ const HomeScreen = ({navigation}) => {
           <StatusCard
             title="System Network"
             value={connectionStatus === 'CONNECTED' ? 'Online' : connectionStatus}
-            caption={connectionError || 'MQTT broker communication'}
-            accentColor={connectionStatus === 'CONNECTED' ? COLORS.success : COLORS.danger}
+            caption={connectionError || 'MQTT Active'}
+            accentColor={
+              connectionStatus === 'CONNECTED' ? COLORS.success : COLORS.danger
+            }
+            compact
           />
 
           <StatusCard
             title="Motor Overview"
-            value={`${runningCount}/6 Running`}
-            caption={faultCount > 0 ? `${faultCount} fault detected` : 'Six motor controller'}
-            accentColor={overallColor}>
-            <MotorPumpIcon size={62} color={overallColor} />
+            value={`${runningCount}/6`}
+            caption={faultCount > 0 ? `${faultCount} fault` : 'Running'}
+            accentColor={overallColor}
+            compact>
+            <MotorPumpIcon size={24} color={overallColor} />
           </StatusCard>
         </View>
 
         <Text style={styles.sectionTitle}>Motors</Text>
+
         <View style={styles.grid}>
           {motors.map(motor => (
-            <MotorCard key={motor.id} motor={motor} onPress={handleMotorPress} />
+            <MotorCard
+              key={motor.id}
+              motor={motor}
+              onPress={handleMotorPress}
+            />
           ))}
         </View>
 
         <View style={styles.messageBox}>
           <Text style={styles.messageTitle}>Last MQTT Message</Text>
-          <Text style={[styles.messageText, {color: statusColor(connectionStatus)}]} numberOfLines={4}>
+          <Text
+            style={[styles.messageText, { color: statusColor(connectionStatus) }]}
+            numberOfLines={4}>
             {lastMessage}
           </Text>
         </View>
@@ -76,8 +116,9 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   masterPanel: {
-    gap: 14,
-    marginBottom: 22,
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
