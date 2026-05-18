@@ -22,22 +22,8 @@ import {
 
 const MqttContext = createContext(null);
 
-const getInitialConnectionStatus = () => {
-  if (mqttService.isConnected()) {
-    return 'CONNECTED';
-  }
-
-  if (typeof mqttService.getStatus === 'function') {
-    return mqttService.getStatus();
-  }
-
-  return 'CONNECTING';
-};
-
 export const MqttProvider = ({ children }) => {
-  const [connectionStatus, setConnectionStatus] = useState(
-    getInitialConnectionStatus,
-  );
+  const [connectionStatus, setConnectionStatus] = useState('CONNECTING');
   const [connectionError, setConnectionError] = useState('');
   const [lastMessage, setLastMessage] = useState(
     'No MQTT messages received yet',
@@ -46,28 +32,18 @@ export const MqttProvider = ({ children }) => {
 
   const subscriptionsRegisteredRef = useRef(false);
 
-  const registerSubscriptions = useCallback(() => {
-    if (subscriptionsRegisteredRef.current) {
-      return;
-    }
-
-    mqttService.subscribe(TOPICS.legacyMotorStatus);
-    mqttService.subscribe(TOPICS.motorStatusWildcard);
-    mqttService.subscribe(TOPICS.motorConfirmationWildcard);
-    mqttService.subscribe(TOPICS.motorTelemetryWildcard);
-
-    subscriptionsRegisteredRef.current = true;
-  }, []);
-
   useEffect(() => {
     const unsubscribeStatus = mqttService.onStatus((status, errorMessage) => {
-      const finalStatus = mqttService.isConnected() ? 'CONNECTED' : status;
-
-      setConnectionStatus(finalStatus);
+      setConnectionStatus(status);
       setConnectionError(errorMessage || '');
 
-      if (finalStatus === 'CONNECTED') {
-        registerSubscriptions();
+      if (status === 'CONNECTED' && !subscriptionsRegisteredRef.current) {
+        mqttService.subscribe(TOPICS.legacyMotorStatus);
+        mqttService.subscribe(TOPICS.motorStatusWildcard);
+        mqttService.subscribe(TOPICS.motorConfirmationWildcard);
+        mqttService.subscribe(TOPICS.motorTelemetryWildcard);
+
+        subscriptionsRegisteredRef.current = true;
       }
     });
 
@@ -87,14 +63,6 @@ export const MqttProvider = ({ children }) => {
         rawStatus !== undefined && rawStatus !== null
           ? normalizeMotorStatus(rawStatus)
           : null;
-
-      // If messages are arriving, MQTT is definitely connected.
-      // This prevents the UI from showing CONNECTING while data is received.
-      if (mqttService.isConnected()) {
-        setConnectionStatus('CONNECTED');
-        setConnectionError('');
-        registerSubscriptions();
-      }
 
       setLastMessage(`${topic} → ${JSON.stringify(payload)}`);
 
@@ -131,21 +99,15 @@ export const MqttProvider = ({ children }) => {
 
     mqttService.connect();
 
-    // If already connected before this component mounted, update UI immediately.
-    if (mqttService.isConnected()) {
-      setConnectionStatus('CONNECTED');
-      setConnectionError('');
-      registerSubscriptions();
-    }
-
     return () => {
       unsubscribeStatus();
       unsubscribeMessages();
 
+      // Important:
       // Do not disconnect here.
       // Keep one MQTT client alive while the app is running.
     };
-  }, [registerSubscriptions]);
+  }, []);
 
   const selectMotor = useCallback(motor => {
     const payload = buildMotorCommandPayload(motor, 'SELECT');

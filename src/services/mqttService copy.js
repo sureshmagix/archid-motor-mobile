@@ -427,12 +427,6 @@ class MqttService extends EventEmitter {
 
   onStatus(listener) {
     this.statusListeners.add(listener);
-
-    // Immediately send current MQTT status to the new listener.
-    // This prevents UI from staying in CONNECTING when MQTT is already connected.
-    const currentStatus = this.client?.connected ? 'CONNECTED' : this.status || 'OFFLINE';
-    listener(currentStatus, this.lastErrorMessage || '');
-
     return () => this.statusListeners.delete(listener);
   }
 
@@ -469,11 +463,7 @@ class MqttService extends EventEmitter {
   }
 
   getStatus() {
-    if (this.client?.connected) {
-      return 'CONNECTED';
-    }
-
-    return this.status || 'OFFLINE';
+    return this.status;
   }
 
   isConnected() {
