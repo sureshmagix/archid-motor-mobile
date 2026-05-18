@@ -12,9 +12,6 @@ import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
 import { mqttService } from '../services/mqttService';
 
-// Module-level flag.
-// This remains true even if HomeScreen re-renders or remounts
-// during the same app session.
 let hasPublishedHomeVisitInThisAppSession = false;
 
 const HomeScreen = ({ navigation }) => {

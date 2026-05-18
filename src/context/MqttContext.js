@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -29,16 +30,20 @@ export const MqttProvider = ({ children }) => {
   );
   const [motors, setMotors] = useState(INITIAL_MOTORS);
 
+  const subscriptionsRegisteredRef = useRef(false);
+
   useEffect(() => {
     const unsubscribeStatus = mqttService.onStatus((status, errorMessage) => {
       setConnectionStatus(status);
       setConnectionError(errorMessage || '');
 
-      if (status === 'CONNECTED') {
+      if (status === 'CONNECTED' && !subscriptionsRegisteredRef.current) {
         mqttService.subscribe(TOPICS.legacyMotorStatus);
         mqttService.subscribe(TOPICS.motorStatusWildcard);
         mqttService.subscribe(TOPICS.motorConfirmationWildcard);
         mqttService.subscribe(TOPICS.motorTelemetryWildcard);
+
+        subscriptionsRegisteredRef.current = true;
       }
     });
 
@@ -98,8 +103,9 @@ export const MqttProvider = ({ children }) => {
       unsubscribeStatus();
       unsubscribeMessages();
 
+      // Important:
       // Do not disconnect here.
-      // This keeps a single MQTT client alive while the app is running.
+      // Keep one MQTT client alive while the app is running.
     };
   }, []);
 
