@@ -4,13 +4,15 @@ export const MQTT_CONFIG = {
   username: 'archiduser',
   password: 'suresh123',
 
+  // Let MQTT.js handle reconnect automatically.
+  // Do not create a second manual reconnect loop.
   reconnectPeriod: 5000,
   connectTimeout: 30000,
-  keepalive: 30,
+  keepalive: 60,
+
   qos: 1,
   clean: true,
-
-  maxReconnectDelay: 30000,
+  resubscribe: true,
 };
 
 export const getMqttUrl = () => `${MQTT_CONFIG.brokerUrl}${MQTT_CONFIG.path}`;

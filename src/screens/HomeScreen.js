@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import HeaderBar from '../components/HeaderBar';
@@ -7,31 +7,43 @@ import MotorPumpIcon from '../components/MotorPumpIcon';
 import StatusCard from '../components/StatusCard';
 
 import { COLORS, statusColor } from '../constants/colors';
+import { TOPICS } from '../constants/topics';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
 import { mqttService } from '../services/mqttService';
+
+// Module-level flag.
+// This remains true even if HomeScreen re-renders or remounts
+// during the same app session.
+let hasPublishedHomeVisitInThisAppSession = false;
 
 const HomeScreen = ({ navigation }) => {
   const { logout } = useAuth();
   const { motors, connectionStatus, connectionError, lastMessage, selectMotor } =
     useMqtt();
 
-  const homeVisitPublishedRef = useRef(false);
-
   useEffect(() => {
-    if (connectionStatus === 'CONNECTED' && !homeVisitPublishedRef.current) {
-      mqttService.publish('archidtech/mobile/home/visit', {
+    if (hasPublishedHomeVisitInThisAppSession) {
+      return;
+    }
+
+    if (connectionStatus !== 'CONNECTED') {
+      return;
+    }
+
+    const published = mqttService.publish(
+      TOPICS.mobileHomeVisit,
+      {
         event: 'HOME_SCREEN_OPENED',
         screen: 'HomeScreen',
         source: 'archid-motor-mobile',
         timestamp: new Date().toISOString(),
-      });
+      },
+      { qos: 1, retain: false },
+    );
 
-      homeVisitPublishedRef.current = true;
-    }
-
-    if (connectionStatus !== 'CONNECTED') {
-      homeVisitPublishedRef.current = false;
+    if (published) {
+      hasPublishedHomeVisitInThisAppSession = true;
     }
   }, [connectionStatus]);
 

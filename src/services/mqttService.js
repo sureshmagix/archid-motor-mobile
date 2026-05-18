@@ -1,20 +1,18 @@
 import 'react-native-get-random-values';
-
 import 'react-native-url-polyfill/auto';
-
 
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import * as mqttModule from 'mqtt';
+import mqtt from 'mqtt';
 
 import { MQTT_CONFIG, getMqttUrl } from '../constants/mqttConfig';
 
 const getMqttConnect = () => {
   const candidates = [
-    mqttModule?.connect,
-    mqttModule?.default?.connect,
-    mqttModule?.default,
-    mqttModule,
+    mqtt?.connect,
+    mqtt?.default?.connect,
+    mqtt?.default,
+    mqtt,
   ];
 
   const connectFn = candidates.find(candidate => typeof candidate === 'function');
@@ -30,40 +28,38 @@ const getMqttConnect = () => {
 
 class MqttService {
   client = null;
+
   statusListeners = new Set();
   messageListeners = new Set();
 
   subscribedTopics = new Map();
-  reconnectTimer = null;
-  reconnectAttempt = 0;
+
   appStateSubscription = null;
   netInfoUnsubscribe = null;
 
   isManuallyDisconnected = false;
   isNetworkAvailable = true;
 
+  lastStatus = '';
+  lastErrorMessage = '';
+
   connect() {
-    if (this.client?.connected) {
+    this.isManuallyDisconnected = false;
+    this.setupNetworkListeners();
+
+    // Important:
+    // If a client already exists, do not create another client.
+    // MQTT.js will handle reconnect internally.
+    if (this.client) {
       return this.client;
     }
 
-    this.isManuallyDisconnected = false;
-    this.setupNetworkListeners();
-    this.createClient();
-
-    return this.client;
+    return this.createClient();
   }
 
   createClient() {
-    this.clearReconnectTimer();
-
     if (this.client) {
-      try {
-        this.client.end(true);
-      } catch (error) {
-        console.log('MQTT old client close error:', error?.message);
-      }
-      this.client = null;
+      return this.client;
     }
 
     if (!this.isNetworkAvailable) {
@@ -73,14 +69,17 @@ class MqttService {
 
     this.emitStatus('CONNECTING');
 
-    const clientId = `archid_motor_${Date.now()}_${Math.random()
-      .toString(16)
-      .slice(2, 8)}`;
+    const clientId = `am_${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 6)}`;
 
     const mqttConnect = getMqttConnect();
-    const url = getMqttUrl();
 
-    this.client = mqttConnect(url, {
+    this.client = mqttConnect({
+      protocol: 'wss',
+      host: 'mqtt.archidtech.in',
+      port: 443,
+      path: '/mqtt',
       username: MQTT_CONFIG.username,
       password: MQTT_CONFIG.password,
       clientId,
@@ -88,36 +87,50 @@ class MqttService {
       connectTimeout: MQTT_CONFIG.connectTimeout,
       keepalive: MQTT_CONFIG.keepalive,
       clean: MQTT_CONFIG.clean,
-      resubscribe: true,
+      resubscribe: MQTT_CONFIG.resubscribe,
+      forceNativeWebSocket: true,
     });
 
     this.client.on('connect', () => {
-      this.reconnectAttempt = 0;
+      console.log('MQTT Client Connected Successfully!');
       this.emitStatus('CONNECTED');
       this.resubscribeAll();
     });
 
     this.client.on('reconnect', () => {
-      this.emitStatus('RECONNECTING');
+      if (!this.isManuallyDisconnected) {
+        console.log('MQTT Client Reconnecting...');
+        this.emitStatus('RECONNECTING');
+      }
     });
 
     this.client.on('close', () => {
-      if (!this.isManuallyDisconnected) {
+      if (this.isManuallyDisconnected) {
         this.emitStatus('OFFLINE');
-        this.scheduleReconnect();
+        return;
       }
+
+      if (!this.isNetworkAvailable) {
+        this.emitStatus('OFFLINE', 'No internet connection');
+        return;
+      }
+
+      // Do not create a new client here.
+      // MQTT.js reconnectPeriod will reconnect the same client.
+      this.emitStatus('RECONNECTING');
     });
 
     this.client.on('offline', () => {
       if (!this.isManuallyDisconnected) {
-        this.emitStatus('OFFLINE');
-        this.scheduleReconnect();
+        this.emitStatus('RECONNECTING');
       }
     });
 
     this.client.on('error', error => {
+      // Do not destroy/recreate the client here.
+      // MQTT.js will keep reconnecting automatically.
+      console.log('MQTT Client Error:', error);
       this.emitStatus('ERROR', error?.message || 'MQTT connection error');
-      this.scheduleReconnect();
     });
 
     this.client.on('message', (topic, message) => {
@@ -130,7 +143,9 @@ class MqttService {
   setupNetworkListeners() {
     if (!this.netInfoUnsubscribe) {
       this.netInfoUnsubscribe = NetInfo.addEventListener(state => {
-        const isConnected = Boolean(state.isConnected && state.isInternetReachable !== false);
+        const isConnected = Boolean(
+          state.isConnected && state.isInternetReachable !== false,
+        );
 
         this.isNetworkAvailable = isConnected;
 
@@ -139,45 +154,51 @@ class MqttService {
           return;
         }
 
-        if (!this.client?.connected && !this.isManuallyDisconnected) {
-          this.scheduleReconnect(1000);
+        if (this.isManuallyDisconnected) {
+          return;
+        }
+
+        if (!this.client) {
+          this.createClient();
+          return;
+        }
+
+        if (!this.client.connected && typeof this.client.reconnect === 'function') {
+          try {
+            this.client.reconnect();
+          } catch (error) {
+            console.log('MQTT reconnect call failed:', error?.message);
+          }
         }
       });
     }
 
     if (!this.appStateSubscription) {
-      this.appStateSubscription = AppState.addEventListener('change', nextState => {
-        if (nextState === 'active' && !this.client?.connected && !this.isManuallyDisconnected) {
-          this.scheduleReconnect(1000);
-        }
-      });
-    }
-  }
+      this.appStateSubscription = AppState.addEventListener(
+        'change',
+        nextState => {
+          if (nextState !== 'active') {
+            return;
+          }
 
-  scheduleReconnect(delayOverride = null) {
-    if (this.isManuallyDisconnected || this.reconnectTimer || !this.isNetworkAvailable) {
-      return;
-    }
+          if (this.isManuallyDisconnected) {
+            return;
+          }
 
-    this.reconnectAttempt += 1;
+          if (!this.client) {
+            this.createClient();
+            return;
+          }
 
-    const delay =
-      delayOverride ??
-      Math.min(
-        MQTT_CONFIG.reconnectPeriod * this.reconnectAttempt,
-        MQTT_CONFIG.maxReconnectDelay,
+          if (!this.client.connected && typeof this.client.reconnect === 'function') {
+            try {
+              this.client.reconnect();
+            } catch (error) {
+              console.log('MQTT reconnect on app active failed:', error?.message);
+            }
+          }
+        },
       );
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.createClient();
-    }, delay);
-  }
-
-  clearReconnectTimer() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
     }
   }
 
@@ -196,8 +217,12 @@ class MqttService {
   }
 
   resubscribeAll() {
+    if (!this.client?.connected) {
+      return;
+    }
+
     this.subscribedTopics.forEach((options, topic) => {
-      this.client?.subscribe(topic, options, error => {
+      this.client.subscribe(topic, options, error => {
         if (error) {
           this.emitStatus('ERROR', error.message);
         }
@@ -206,9 +231,12 @@ class MqttService {
   }
 
   publish(topic, payload, options = { qos: MQTT_CONFIG.qos, retain: false }) {
+    if (!this.client) {
+      this.connect();
+    }
+
     if (!this.client?.connected) {
-      this.emitStatus('ERROR', 'MQTT client is not connected');
-      this.scheduleReconnect(1000);
+      this.emitStatus('RECONNECTING', 'MQTT client is not connected');
       return false;
     }
 
@@ -225,10 +253,14 @@ class MqttService {
 
   disconnect() {
     this.isManuallyDisconnected = true;
-    this.clearReconnectTimer();
 
     if (this.client) {
-      this.client.end(true);
+      try {
+        this.client.end(true);
+      } catch (error) {
+        console.log('MQTT disconnect error:', error?.message);
+      }
+
       this.client = null;
     }
 
@@ -247,6 +279,10 @@ class MqttService {
       this.appStateSubscription.remove();
       this.appStateSubscription = null;
     }
+
+    this.statusListeners.clear();
+    this.messageListeners.clear();
+    this.subscribedTopics.clear();
   }
 
   onStatus(listener) {
@@ -260,6 +296,14 @@ class MqttService {
   }
 
   emitStatus(status, errorMessage = '') {
+    // Prevent repeated identical status updates.
+    if (this.lastStatus === status && this.lastErrorMessage === errorMessage) {
+      return;
+    }
+
+    this.lastStatus = status;
+    this.lastErrorMessage = errorMessage;
+
     this.statusListeners.forEach(listener => listener(status, errorMessage));
   }
 

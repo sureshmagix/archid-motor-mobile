@@ -1,7 +1,16 @@
-import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
-import {INITIAL_MOTORS} from '../constants/motors';
-import {TOPICS} from '../constants/topics';
-import {mqttService} from '../services/mqttService';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+import { INITIAL_MOTORS } from '../constants/motors';
+import { TOPICS } from '../constants/topics';
+import { mqttService } from '../services/mqttService';
+
 import {
   buildMotorCommandPayload,
   extractMotorIdFromTopic,
@@ -12,10 +21,12 @@ import {
 
 const MqttContext = createContext(null);
 
-export const MqttProvider = ({children}) => {
+export const MqttProvider = ({ children }) => {
   const [connectionStatus, setConnectionStatus] = useState('CONNECTING');
   const [connectionError, setConnectionError] = useState('');
-  const [lastMessage, setLastMessage] = useState('No MQTT messages received yet');
+  const [lastMessage, setLastMessage] = useState(
+    'No MQTT messages received yet',
+  );
   const [motors, setMotors] = useState(INITIAL_MOTORS);
 
   useEffect(() => {
@@ -33,11 +44,20 @@ export const MqttProvider = ({children}) => {
 
     const unsubscribeMessages = mqttService.onMessage((topic, rawMessage) => {
       const payload = parseMqttPayload(rawMessage);
+
       const motorIdFromTopic = extractMotorIdFromTopic(topic);
       const motorId = payload.motorId || payload.id || motorIdFromTopic;
-      const status = normalizeMotorStatus(
-        payload.status ?? payload.state ?? payload.confirmation ?? payload.runStatus,
-      );
+
+      const rawStatus =
+        payload.status ??
+        payload.state ??
+        payload.confirmation ??
+        payload.runStatus;
+
+      const normalizedStatus =
+        rawStatus !== undefined && rawStatus !== null
+          ? normalizeMotorStatus(rawStatus)
+          : null;
 
       setLastMessage(`${topic} → ${JSON.stringify(payload)}`);
 
@@ -45,17 +65,28 @@ export const MqttProvider = ({children}) => {
         currentMotors.map(motor => {
           const shouldUpdate =
             motor.id === motorId ||
-            String(motor.id).endsWith(String(motorId || '').replace('motor-', '')) ||
+            String(motor.id).endsWith(
+              String(motorId || '').replace('motor-', ''),
+            ) ||
             (!motorId && topic === TOPICS.legacyMotorStatus);
 
-          if (!shouldUpdate) return motor;
+          if (!shouldUpdate) {
+            return motor;
+          }
 
           return {
             ...motor,
-            status,
-            lastMessage: payload.message || `MQTT confirmation: ${status}`,
+            status: normalizedStatus || motor.status,
+            lastMessage:
+              payload.message ||
+              (normalizedStatus
+                ? `MQTT confirmation: ${normalizedStatus}`
+                : 'MQTT telemetry updated'),
             updatedAt: new Date().toISOString(),
-            parameters: mergeParameters(motor.parameters, payload.parameters || payload),
+            parameters: mergeParameters(
+              motor.parameters,
+              payload.parameters || payload,
+            ),
           };
         }),
       );
@@ -66,20 +97,29 @@ export const MqttProvider = ({children}) => {
     return () => {
       unsubscribeStatus();
       unsubscribeMessages();
+
+      // Do not disconnect here.
+      // This keeps a single MQTT client alive while the app is running.
     };
   }, []);
 
   const selectMotor = useCallback(motor => {
+    const payload = buildMotorCommandPayload(motor, 'SELECT');
+    const published = mqttService.publish(TOPICS.motorCommand(motor.id), payload);
+
     setMotors(currentMotors =>
       currentMotors.map(item =>
         item.id === motor.id
-          ? {...item, status: 'PENDING', lastMessage: 'Command sent. Waiting for MQTT confirmation...'}
+          ? {
+            ...item,
+            status: published ? 'PENDING' : item.status,
+            lastMessage: published
+              ? 'Command sent. Waiting for MQTT confirmation...'
+              : 'MQTT not connected. Command was not sent.',
+          }
           : item,
       ),
     );
-
-    const payload = buildMotorCommandPayload(motor, 'SELECT');
-    mqttService.publish(TOPICS.motorCommand(motor.id), payload);
   }, []);
 
   const controlMotor = useCallback((motor, requestedState) => {
@@ -88,15 +128,21 @@ export const MqttProvider = ({children}) => {
       requestedState,
     };
 
+    const published = mqttService.publish(TOPICS.motorCommand(motor.id), payload);
+
     setMotors(currentMotors =>
       currentMotors.map(item =>
         item.id === motor.id
-          ? {...item, status: 'PENDING', lastMessage: `Requested ${requestedState}. Waiting for confirmation...`}
+          ? {
+            ...item,
+            status: published ? 'PENDING' : item.status,
+            lastMessage: published
+              ? `Requested ${requestedState}. Waiting for confirmation...`
+              : 'MQTT not connected. Command was not sent.',
+          }
           : item,
       ),
     );
-
-    mqttService.publish(TOPICS.motorCommand(motor.id), payload);
   }, []);
 
   const value = useMemo(
@@ -108,7 +154,14 @@ export const MqttProvider = ({children}) => {
       selectMotor,
       controlMotor,
     }),
-    [connectionStatus, connectionError, lastMessage, motors, selectMotor, controlMotor],
+    [
+      connectionStatus,
+      connectionError,
+      lastMessage,
+      motors,
+      selectMotor,
+      controlMotor,
+    ],
   );
 
   return <MqttContext.Provider value={value}>{children}</MqttContext.Provider>;
