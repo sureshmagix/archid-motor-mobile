@@ -230,116 +230,138 @@ const MotorDetailScreen = ({ navigation, route }) => {
           <Text style={styles.backLinkText}>← Back to Home</Text>
         </TouchableOpacity>
 
-        <View style={[styles.heroCard, { borderLeftColor: motorStatusColor }]}>
-          <View style={styles.heroText}>
-            <Text style={styles.kicker}>MOTOR CONTROL PANEL</Text>
-            <Text style={styles.title}>{motor.name}</Text>
+        {/* Motor Control Panel + Live Motor Status in one line */}
+        <View style={styles.topStatusRow}>
+          <View style={styles.controlPanelColumn}>
+            <View style={[styles.heroCard, { borderLeftColor: motorStatusColor }]}>
+              <View style={styles.heroText}>
+                <Text style={styles.kicker}>MOTOR CONTROL PANEL</Text>
+                <Text style={styles.title} numberOfLines={1}>
+                  {motor.name}
+                </Text>
 
-            <View style={[styles.statusPill, { backgroundColor: `${motorStatusColor}18` }]}>
-              <View style={[styles.statusDot, { backgroundColor: motorStatusColor }]} />
-              <Text style={[styles.statusPillText, { color: motorStatusColor }]}>
-                {motorStatus}
-              </Text>
+                <View style={[styles.statusPill, { backgroundColor: `${motorStatusColor}18` }]}>
+                  <View style={[styles.statusDot, { backgroundColor: motorStatusColor }]} />
+                  <Text style={[styles.statusPillText, { color: motorStatusColor }]}>
+                    {motorStatus}
+                  </Text>
+                </View>
+
+                <Text style={styles.caption} numberOfLines={2}>
+                  {motor.lastMessage || 'Waiting for latest controller update'}
+                </Text>
+              </View>
+
+              <View style={styles.motorIconBox}>
+                <MotorPumpIcon size={76} color={motorStatusColor || motorBaseColor} />
+              </View>
             </View>
 
-            <Text style={styles.caption}>
-              {motor.lastMessage || 'Waiting for latest controller update'}
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.onButton]}
+                onPress={() => controlMotor(motor, 'ON')}
+              >
+                <Text style={styles.actionText}>⏻ Turn ON</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.offButton]}
+                onPress={() => controlMotor(motor, 'OFF')}
+              >
+                <Text style={styles.actionText}>■ Turn OFF</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.liveStatusPanel}>
+            <Text style={styles.kicker}>LIVE MOTOR STATUS</Text>
+
+            <View style={[styles.liveStatusIconBadge, { backgroundColor: `${motorStatusColor}18` }]}>
+              <Text style={[styles.liveStatusIcon, { color: motorStatusColor }]}>⚙</Text>
+            </View>
+
+            <Text style={[styles.liveStatusValue, { color: motorStatusColor }]} numberOfLines={1}>
+              {motorStatus}
             </Text>
-          </View>
 
-          <View style={styles.motorIconBox}>
-            <MotorPumpIcon size={88} color={motorStatusColor || motorBaseColor} />
+            <Text style={styles.liveStatusLabel}>Real-time running condition</Text>
           </View>
         </View>
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.onButton]}
-            onPress={() => controlMotor(motor, 'ON')}
-          >
-            <Text style={styles.actionText}>⏻ Turn ON</Text>
-          </TouchableOpacity>
+        {/* Voltage + Current Measurements side by side */}
+        <View style={styles.measurementsRow}>
+          <View style={styles.measurementPanel}>
+            <View style={styles.measurementHeader}>
+              <Text style={styles.measurementTitle}>Voltage Measurement</Text>
+              <Text style={styles.measurementSubtitle}>Line-to-line volts</Text>
+            </View>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.offButton]}
-            onPress={() => controlMotor(motor, 'OFF')}
-          >
-            <Text style={styles.actionText}>■ Turn OFF</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.phaseGrid}>
+              <PhaseCard
+                phase="RV"
+                title="Voltage"
+                value={voltageRV}
+                unit="V"
+                icon="⚡"
+                color="#ef4444"
+              />
 
-        <Text style={styles.sectionTitle}>Live Motor Status</Text>
+              <PhaseCard
+                phase="YB"
+                title="Voltage"
+                value={voltageYB}
+                unit="V"
+                icon="⚡"
+                color="#f59e0b"
+              />
 
-        <MetricCard
-          icon="⚙"
-          title="Motor Status"
-          value={motorStatus}
-          subtitle="Real-time running condition"
-          color={motorStatusColor}
-        />
+              <PhaseCard
+                phase="RB"
+                title="Voltage"
+                value={voltageRB}
+                unit="V"
+                icon="⚡"
+                color="#2563eb"
+              />
+            </View>
+          </View>
 
-        <Text style={styles.sectionTitle}>Voltage Measurement</Text>
-        <Text style={styles.sectionSubtitle}>Line-to-line voltage in volts</Text>
+          <View style={styles.measurementPanel}>
+            <View style={styles.measurementHeader}>
+              <Text style={styles.measurementTitle}>Current Measurement</Text>
+              <Text style={styles.measurementSubtitle}>Phase current amps</Text>
+            </View>
 
-        <View style={styles.phaseGrid}>
-          <PhaseCard
-            phase="RV"
-            title="Voltage"
-            value={voltageRV}
-            unit="V"
-            icon="⚡"
-            color="#ef4444"
-          />
+            <View style={styles.phaseGrid}>
+              <PhaseCard
+                phase="R"
+                title="Current"
+                value={currentR}
+                unit="A"
+                icon="∿"
+                color="#ef4444"
+              />
 
-          <PhaseCard
-            phase="YB"
-            title="Voltage"
-            value={voltageYB}
-            unit="V"
-            icon="⚡"
-            color="#f59e0b"
-          />
+              <PhaseCard
+                phase="Y"
+                title="Current"
+                value={currentY}
+                unit="A"
+                icon="∿"
+                color="#f59e0b"
+              />
 
-          <PhaseCard
-            phase="RB"
-            title="Voltage"
-            value={voltageRB}
-            unit="V"
-            icon="⚡"
-            color="#2563eb"
-          />
-        </View>
-
-        <Text style={styles.sectionTitle}>Current Measurement</Text>
-        <Text style={styles.sectionSubtitle}>Phase current in amps</Text>
-
-        <View style={styles.phaseGrid}>
-          <PhaseCard
-            phase="R"
-            title="Current"
-            value={currentR}
-            unit="A"
-            icon="∿"
-            color="#ef4444"
-          />
-
-          <PhaseCard
-            phase="Y"
-            title="Current"
-            value={currentY}
-            unit="A"
-            icon="∿"
-            color="#f59e0b"
-          />
-
-          <PhaseCard
-            phase="B"
-            title="Current"
-            value={currentB}
-            unit="A"
-            icon="∿"
-            color="#2563eb"
-          />
+              <PhaseCard
+                phase="B"
+                title="Current"
+                value={currentB}
+                unit="A"
+                icon="∿"
+                color="#2563eb"
+              />
+            </View>
+          </View>
         </View>
 
         <View style={styles.infoBox}>
@@ -366,7 +388,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.page,
   },
   content: {
-    padding: 16,
+    padding: 14,
     paddingBottom: 96,
   },
   backLink: {
@@ -376,15 +398,27 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     fontWeight: '900',
   },
+
+  topStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+    marginBottom: 14,
+  },
+  controlPanelColumn: {
+    flex: 1.35,
+    minWidth: 0,
+  },
+
   heroCard: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
-    padding: 18,
+    padding: 14,
     borderLeftWidth: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -393,61 +427,64 @@ const styles = StyleSheet.create({
   },
   heroText: {
     flex: 1,
-    paddingRight: 16,
+    paddingRight: 10,
+    minWidth: 0,
   },
   kicker: {
     color: COLORS.muted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
   title: {
     color: COLORS.text,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
   },
   statusPill: {
     alignSelf: 'flex-start',
-    marginTop: 12,
+    marginTop: 10,
     borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
   },
   statusDot: {
-    width: 9,
-    height: 9,
+    width: 8,
+    height: 8,
     borderRadius: 99,
   },
   statusPillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
   },
   caption: {
-    marginTop: 10,
+    marginTop: 9,
     color: COLORS.muted,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   motorIconBox: {
-    width: 104,
-    height: 104,
-    borderRadius: 24,
+    width: 86,
+    height: 86,
+    borderRadius: 22,
     backgroundColor: '#f4f7fb',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 22,
+    gap: 10,
   },
   actionButton: {
     flex: 1,
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: 13,
     alignItems: 'center',
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 5 },
@@ -463,20 +500,166 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: '#fff',
+    fontSize: 13,
     fontWeight: '900',
   },
-  sectionTitle: {
+
+  liveStatusPanel: {
+    flex: 0.85,
+    minWidth: 0,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 14,
+    justifyContent: 'space-between',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  liveStatusIconBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  liveStatusIcon: {
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  liveStatusValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    marginTop: 12,
+  },
+  liveStatusLabel: {
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 6,
+  },
+
+  measurementsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  measurementPanel: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e8edf3',
+  },
+  measurementHeader: {
+    marginBottom: 12,
+  },
+  measurementTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  measurementSubtitle: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 3,
+    fontWeight: '700',
+  },
+
+  phaseGrid: {
+    gap: 10,
+  },
+  phaseCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  phaseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 9,
+    gap: 7,
+  },
+  phaseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 99,
+  },
+  phaseName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  phaseBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  phaseIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#f4f7fb',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 36,
+    fontSize: 19,
+    marginRight: 9,
+  },
+  phaseTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  phaseTitle: {
+    color: COLORS.muted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  phaseValue: {
     color: COLORS.text,
     fontSize: 18,
     fontWeight: '900',
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 2,
   },
-  sectionSubtitle: {
+
+  infoBox: {
+    marginTop: 2,
+    backgroundColor: '#eef1f4',
+    borderRadius: 18,
+    padding: 16,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoIcon: {
+    fontSize: 18,
+  },
+  infoTitle: {
+    color: COLORS.text,
+    fontWeight: '900',
+  },
+  infoText: {
+    marginTop: 8,
+    color: COLORS.accent,
+    fontWeight: '900',
+  },
+  infoSmall: {
+    marginTop: 8,
     color: COLORS.muted,
-    fontSize: 13,
-    marginBottom: 12,
+    lineHeight: 18,
   },
+
   metricCard: {
     backgroundColor: COLORS.card,
     borderRadius: 18,
@@ -520,93 +703,7 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 13,
   },
-  phaseGrid: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  phaseCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 16,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  phaseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  phaseDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 99,
-  },
-  phaseName: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  phaseBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  phaseIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#f4f7fb',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    lineHeight: 46,
-    fontSize: 24,
-    marginRight: 12,
-  },
-  phaseTextBox: {
-    flex: 1,
-  },
-  phaseTitle: {
-    color: COLORS.muted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  phaseValue: {
-    color: COLORS.text,
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  infoBox: {
-    marginTop: 2,
-    backgroundColor: '#eef1f4',
-    borderRadius: 18,
-    padding: 16,
-  },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  infoIcon: {
-    fontSize: 18,
-  },
-  infoTitle: {
-    color: COLORS.text,
-    fontWeight: '900',
-  },
-  infoText: {
-    marginTop: 8,
-    color: COLORS.accent,
-    fontWeight: '900',
-  },
-  infoSmall: {
-    marginTop: 8,
-    color: COLORS.muted,
-    lineHeight: 18,
-  },
+
   missingBox: {
     flex: 1,
     alignItems: 'center',
