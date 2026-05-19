@@ -1,5 +1,11 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import HeaderBar from '../components/HeaderBar';
 import MotorCard from '../components/MotorCard';
@@ -13,7 +19,8 @@ import { useMqtt } from '../context/MqttContext';
 import useScreenMqttActivity from '../hooks/useScreenMqttActivity';
 
 const HomeScreen = ({ navigation }) => {
-  useScreenMqttActivity('Home');
+  const { publishRefresh } = useScreenMqttActivity('Home');
+  const [refreshing, setRefreshing] = useState(false);
 
   const { logout } = useAuth();
 
@@ -60,6 +67,18 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('MotorDetail', { motorId: motor.id });
   };
 
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+
+    publishRefresh({
+      requestedData: 'ALL_MOTORS',
+    });
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 900);
+  }, [publishRefresh]);
+
   return (
     <View style={styles.root}>
       <HeaderBar
@@ -71,7 +90,15 @@ const HomeScreen = ({ navigation }) => {
 
       <ScrollView
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent}
+            colors={[COLORS.accent]}
+          />
+        }>
         <View style={styles.masterPanel}>
           <StatusCard
             title="System Network"

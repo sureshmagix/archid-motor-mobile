@@ -11,7 +11,7 @@ const cleanScreenName = screenName => {
 };
 
 export const screenActivityService = {
-    publish(screenName, event) {
+    publish(screenName, event, extraPayload = {}) {
         const cleanName = cleanScreenName(screenName);
         const cleanEvent = String(event || '').toUpperCase();
 
@@ -38,6 +38,8 @@ export const screenActivityService = {
         const payload = {
             screen: cleanName,
             event: cleanEvent,
+            timestamp: new Date().toISOString(),
+            ...extraPayload,
         };
 
         return mqttService.publish(TOPICS.screenActivity(cleanName), payload, {
@@ -46,12 +48,16 @@ export const screenActivityService = {
         });
     },
 
-    enter(screenName) {
-        return this.publish(screenName, 'ENTER');
+    enter(screenName, extraPayload = {}) {
+        return this.publish(screenName, 'ENTER', extraPayload);
     },
 
-    leave(screenName) {
-        return this.publish(screenName, 'LEAVE');
+    leave(screenName, extraPayload = {}) {
+        return this.publish(screenName, 'LEAVE', extraPayload);
+    },
+
+    refresh(screenName, extraPayload = {}) {
+        return this.publish(screenName, 'REFRESH', extraPayload);
     },
 
     reset() {
