@@ -1,21 +1,21 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { COLORS, statusColor } from '../constants/colors';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {COLORS, statusColor} from '../constants/colors';
 import MotorPumpIcon from './MotorPumpIcon';
 
-const MotorCard = ({ motor, onPress }) => {
+const MotorCard = ({motor, onPress}) => {
   const color = statusColor(motor.status);
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(motor)} style={[styles.card, { borderTopColor: color }]}>
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(motor)} style={[styles.card, {borderTopColor: color}]}>
       <View style={styles.topRow}>
         <View>
           <Text style={styles.name}>{motor.name}</Text>
           <Text style={styles.subText}>Tap to open details</Text>
         </View>
-        <View style={[styles.statusPill, { backgroundColor: `${color}18` }]}>
-          <View style={[styles.statusDot, { backgroundColor: color }]} />
-          <Text style={[styles.statusText, { color }]}>{motor.status}</Text>
+        <View style={[styles.statusPill, {backgroundColor: `${color}18`}]}>
+          <View style={[styles.statusDot, {backgroundColor: color}]} />
+          <Text style={[styles.statusText, {color}]}>{motor.status}</Text>
         </View>
       </View>
 
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 4,
     marginBottom: 14,
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
