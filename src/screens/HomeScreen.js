@@ -12,10 +12,12 @@ import { TOPICS } from '../constants/topics';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
 import { mqttService } from '../services/mqttService';
+import useScreenMqttActivity from '../hooks/useScreenMqttActivity';
 
 let hasPublishedHomeVisitInThisAppSession = false;
 
 const HomeScreen = ({ navigation }) => {
+  useScreenMqttActivity('Home');
   const { logout } = useAuth();
 
   const {

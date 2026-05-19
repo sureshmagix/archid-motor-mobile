@@ -13,4 +13,9 @@ export const TOPICS = {
   wifiProvisioning: deviceId => `archidtech/device/${deviceId}/wifi/provision`,
 
   mobileHomeVisit: 'archidtech/mobile/home/visit',
+
+  screenActivity: screenName =>
+    `archidtech/mobile/screen/${screenName}/activity`,
+
+  screenActivityAll: 'archidtech/mobile/screen/+/activity',
 };
