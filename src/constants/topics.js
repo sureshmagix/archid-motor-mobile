@@ -1,21 +1,72 @@
+// src/constants/topics.js
+
+const DEFAULT_TOPIC_PREFIX = 'guest';
+
+/**
+ * Converts login username into a safe MQTT topic prefix.
+ *
+ * Example:
+ * admin       -> admin
+ * Super Admin -> super_admin
+ * site/user1  -> site_user1
+ */
+export const getTopicPrefix = username => {
+  return String(username || DEFAULT_TOPIC_PREFIX)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '_');
+};
+
 export const TOPICS = {
-  legacyMotorStatus: 'archidtech/motor/status',
+  // ---------------------------------------------------------------------------
+  // MOTOR STATUS TOPICS
+  // ---------------------------------------------------------------------------
 
-  motorStatusWildcard: 'archidtech/motor/+/status',
-  motorConfirmationWildcard: 'archidtech/motor/+/confirmation',
-  motorTelemetryWildcard: 'archidtech/motor/+/telemetry',
+  legacyMotorStatus: username =>
+    `${getTopicPrefix(username)}/motor/status`,
 
-  motorCommand: motorId => `archidtech/motor/${motorId}/command`,
-  motorStatus: motorId => `archidtech/motor/${motorId}/status`,
-  motorConfirmation: motorId => `archidtech/motor/${motorId}/confirmation`,
-  motorTelemetry: motorId => `archidtech/motor/${motorId}/telemetry`,
+  motorStatusWildcard: username =>
+    `${getTopicPrefix(username)}/motor/+/status`,
 
-  wifiProvisioning: deviceId => `archidtech/device/${deviceId}/wifi/provision`,
+  motorConfirmationWildcard: username =>
+    `${getTopicPrefix(username)}/motor/+/confirmation`,
 
-  mobileHomeVisit: 'archidtech/mobile/home/visit',
+  motorTelemetryWildcard: username =>
+    `${getTopicPrefix(username)}/motor/+/telemetry`,
 
-  screenActivity: screenName =>
-    `archidtech/mobile/screen/${screenName}/activity`,
+  // ---------------------------------------------------------------------------
+  // MOTOR SPECIFIC TOPICS
+  // ---------------------------------------------------------------------------
 
-  screenActivityAll: 'archidtech/mobile/screen/+/activity',
+  motorCommand: (username, motorId) =>
+    `${getTopicPrefix(username)}/motor/${motorId}/command`,
+
+  motorStatus: (username, motorId) =>
+    `${getTopicPrefix(username)}/motor/${motorId}/status`,
+
+  motorConfirmation: (username, motorId) =>
+    `${getTopicPrefix(username)}/motor/${motorId}/confirmation`,
+
+  motorTelemetry: (username, motorId) =>
+    `${getTopicPrefix(username)}/motor/${motorId}/telemetry`,
+
+  // ---------------------------------------------------------------------------
+  // WIFI PROVISIONING
+  // ---------------------------------------------------------------------------
+
+  wifiProvisioning: (username, deviceId) =>
+    `${getTopicPrefix(username)}/device/${deviceId}/wifi/provision`,
+
+  // ---------------------------------------------------------------------------
+  // MOBILE APP ACTIVITY TOPICS
+  // ---------------------------------------------------------------------------
+
+  mobileHomeVisit: username =>
+    `${getTopicPrefix(username)}/mobile/home/visit`,
+
+  screenActivity: (username, screenName) =>
+    `${getTopicPrefix(username)}/mobile/screen/${screenName}/activity`,
+
+  screenActivityAll: username =>
+    `${getTopicPrefix(username)}/mobile/screen/+/activity`,
 };

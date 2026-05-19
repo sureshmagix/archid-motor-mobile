@@ -25,8 +25,17 @@ import { useMqtt } from '../context/MqttContext';
 const DEFAULT_SERVER_URL = 'http://192.168.4.1/wifi';
 
 const WifiProvisioningScreen = ({ navigation }) => {
-    const { logout } = useAuth();
+    const auth = useAuth();
+    const { logout } = auth;
+
     const { connectionStatus } = useMqtt();
+
+    const loggedInUsername =
+        auth?.user?.username ||
+        auth?.currentUser?.username ||
+        auth?.authUser?.username ||
+        auth?.username ||
+        'unknown';
 
     const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
 
@@ -55,16 +64,20 @@ const WifiProvisioningScreen = ({ navigation }) => {
             return false;
         }
 
-        const permissions = [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+        const permissions = [
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        ];
 
-        if (
-            Number(Platform.Version) >= 33 &&
-            PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES
-        ) {
-            permissions.push(PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES);
+        if (Number(Platform.Version) >= 33) {
+            permissions.push(
+                PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES ||
+                'android.permission.NEARBY_WIFI_DEVICES',
+            );
         }
 
         const results = await PermissionsAndroid.requestMultiple(permissions);
+
+        console.log('WiFi permission results:', results);
 
         return permissions.every(
             permission => results[permission] === PermissionsAndroid.RESULTS.GRANTED,
@@ -241,11 +254,14 @@ const WifiProvisioningScreen = ({ navigation }) => {
             ssid: cleanSsid,
             wifiName: cleanSsid,
             password,
+            loginUsername: loggedInUsername,
         };
 
         try {
             setIsSubmitting(true);
             setMessage('Sending WiFi details...');
+
+            console.log('WiFi provisioning payload:', payload);
 
             const response = await fetch(cleanUrl, {
                 method: 'POST',
