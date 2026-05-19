@@ -17,6 +17,7 @@ import { MQTT_CONFIG, updateMqttConfig } from '../constants/mqttConfig';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
 import { mqttService } from '../services/mqttService';
+import FloatingHomeButton from '../components/FloatingHomeButton';
 
 const MqttSettingsScreen = ({ navigation }) => {
     const { logout } = useAuth();
@@ -147,6 +148,8 @@ const MqttSettingsScreen = ({ navigation }) => {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+            <FloatingHomeButton navigation={navigation} />
+
         </View>
     );
 };

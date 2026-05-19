@@ -98,8 +98,6 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <AppMenu navigation={navigation} />
-
         <View style={styles.masterPanel}>
           <StatusCard
             title="System Network"
@@ -142,7 +140,12 @@ const HomeScreen = ({ navigation }) => {
             <View
               style={[
                 styles.statusDot,
-                { backgroundColor: statusColor(connectionStatus) },
+                {
+                  backgroundColor:
+                    connectionStatus === 'CONNECTED'
+                      ? COLORS.success
+                      : statusColor(connectionStatus),
+                },
               ]}
             />
           </View>
@@ -150,12 +153,19 @@ const HomeScreen = ({ navigation }) => {
           <Text
             style={[
               styles.messageText,
-              { color: statusColor(connectionStatus) },
+              {
+                color:
+                  connectionStatus === 'CONNECTED'
+                    ? COLORS.success
+                    : statusColor(connectionStatus),
+              },
             ]}
             numberOfLines={4}>
             {lastMessage || 'No MQTT messages received yet'}
           </Text>
         </View>
+
+        <AppMenu navigation={navigation} />
       </ScrollView>
     </View>
   );
@@ -169,13 +179,13 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 90,
   },
 
   masterPanel: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 22,
   },
 
   sectionHeader: {
@@ -205,6 +215,7 @@ const styles = StyleSheet.create({
 
   messageBox: {
     marginTop: 8,
+    marginBottom: 14,
     backgroundColor: COLORS.card,
     borderRadius: 14,
     padding: 16,
