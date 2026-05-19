@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import HeaderBar from '../components/HeaderBar';
@@ -8,16 +8,13 @@ import StatusCard from '../components/StatusCard';
 import AppMenu from '../components/AppMenu';
 
 import { COLORS, statusColor } from '../constants/colors';
-import { TOPICS } from '../constants/topics';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
-import { mqttService } from '../services/mqttService';
 import useScreenMqttActivity from '../hooks/useScreenMqttActivity';
-
-let hasPublishedHomeVisitInThisAppSession = false;
 
 const HomeScreen = ({ navigation }) => {
   useScreenMqttActivity('Home');
+
   const { logout } = useAuth();
 
   const {
@@ -27,31 +24,6 @@ const HomeScreen = ({ navigation }) => {
     lastMessage,
     selectMotor,
   } = useMqtt();
-
-  useEffect(() => {
-    if (hasPublishedHomeVisitInThisAppSession) {
-      return;
-    }
-
-    if (connectionStatus !== 'CONNECTED') {
-      return;
-    }
-
-    const published = mqttService.publish(
-      TOPICS.mobileHomeVisit,
-      {
-        event: 'HOME_SCREEN_OPENED',
-        screen: 'HomeScreen',
-        source: 'archid-motor-mobile',
-        timestamp: new Date().toISOString(),
-      },
-      { qos: 1, retain: false },
-    );
-
-    if (published) {
-      hasPublishedHomeVisitInThisAppSession = true;
-    }
-  }, [connectionStatus]);
 
   const runningCount = motors.filter(motor => motor.status === 'ON').length;
   const faultCount = motors.filter(motor => motor.status === 'FAULT').length;

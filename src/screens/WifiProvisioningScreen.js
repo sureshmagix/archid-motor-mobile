@@ -372,35 +372,39 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                             No networks found. Enter WiFi name manually.
                                         </Text>
                                     ) : (
-                                        networks.map((network, index) => {
-                                            const isSelected =
-                                                selectedNetwork?.SSID === network.SSID ||
-                                                ssid === network.SSID;
+                                        <ScrollView
+                                            nestedScrollEnabled
+                                            showsVerticalScrollIndicator
+                                            style={styles.networkScroll}
+                                            contentContainerStyle={styles.networkScrollContent}>
+                                            {networks.map((network, index) => {
+                                                const isSelected =
+                                                    selectedNetwork?.SSID === network.SSID ||
+                                                    ssid === network.SSID;
 
-                                            return (
-                                                <TouchableOpacity
-                                                    key={`${network.SSID}-${index}`}
-                                                    activeOpacity={0.82}
-                                                    style={[
-                                                        styles.networkItem,
-                                                        isSelected && styles.networkItemSelected,
-                                                    ]}
-                                                    onPress={() => selectNetwork(network)}>
-                                                    <View style={styles.networkInfo}>
-                                                        <Text style={styles.networkName} numberOfLines={1}>
-                                                            {network.SSID}
-                                                        </Text>
-                                                        <Text style={styles.networkMeta}>
-                                                            Signal: {getSignalText(network.level)}
-                                                        </Text>
-                                                    </View>
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={`${network.SSID}-${index}`}
+                                                        activeOpacity={0.82}
+                                                        style={[
+                                                            styles.networkItem,
+                                                            isSelected && styles.networkItemSelected,
+                                                        ]}
+                                                        onPress={() => selectNetwork(network)}>
+                                                        <View style={styles.networkInfo}>
+                                                            <Text style={styles.networkName} numberOfLines={1}>
+                                                                {network.SSID}
+                                                            </Text>
+                                                            <Text style={styles.networkMeta}>
+                                                                Signal: {getSignalText(network.level)}
+                                                            </Text>
+                                                        </View>
 
-                                                    {isSelected && (
-                                                        <Text style={styles.selectedTick}>✓</Text>
-                                                    )}
-                                                </TouchableOpacity>
-                                            );
-                                        })
+                                                        {isSelected && <Text style={styles.selectedTick}>✓</Text>}
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
+                                        </ScrollView>
                                     )}
                                 </View>
                             )}
@@ -561,7 +565,15 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         backgroundColor: '#ffffff',
         overflow: 'hidden',
-        maxHeight: 230,
+        maxHeight: 240,
+    },
+
+    networkScroll: {
+        maxHeight: 240,
+    },
+
+    networkScrollContent: {
+        paddingBottom: 4,
     },
 
     networkItem: {

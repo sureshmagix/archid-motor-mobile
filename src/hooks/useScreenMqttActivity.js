@@ -1,15 +1,23 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { screenActivityService } from '../services/screenActivityService';
 
-export const useScreenMqttActivity = screenName => {
+const useScreenMqttActivity = screenName => {
+    const isFocusedRef = useRef(false);
+
     useFocusEffect(
         useCallback(() => {
-            screenActivityService.enter(screenName);
+            if (!isFocusedRef.current) {
+                isFocusedRef.current = true;
+                screenActivityService.enter(screenName);
+            }
 
             return () => {
-                screenActivityService.leave(screenName);
+                if (isFocusedRef.current) {
+                    isFocusedRef.current = false;
+                    screenActivityService.leave(screenName);
+                }
             };
         }, [screenName]),
     );
