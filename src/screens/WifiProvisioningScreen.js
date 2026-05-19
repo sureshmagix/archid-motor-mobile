@@ -25,8 +25,17 @@ import { useMqtt } from '../context/MqttContext';
 const DEFAULT_SERVER_URL = 'http://192.168.4.1/wifi';
 
 const WifiProvisioningScreen = ({ navigation }) => {
-    const { logout } = useAuth();
+    const auth = useAuth();
+    const { logout } = auth;
+
     const { connectionStatus } = useMqtt();
+
+    const loggedInUsername =
+        auth?.user?.username ||
+        auth?.currentUser?.username ||
+        auth?.authUser?.username ||
+        auth?.username ||
+        'unknown';
 
     const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
 
@@ -241,11 +250,14 @@ const WifiProvisioningScreen = ({ navigation }) => {
             ssid: cleanSsid,
             wifiName: cleanSsid,
             password,
+            loginUsername: loggedInUsername,
         };
 
         try {
             setIsSubmitting(true);
             setMessage('Sending WiFi details...');
+
+            console.log('WiFi provisioning payload:', payload);
 
             const response = await fetch(cleanUrl, {
                 method: 'POST',

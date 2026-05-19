@@ -2,34 +2,36 @@ import { useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { screenActivityService } from '../services/screenActivityService';
+import { useAuth } from '../context/AuthContext';
 
 const useScreenMqttActivity = screenName => {
+    const { user } = useAuth();
     const isFocusedRef = useRef(false);
 
     useFocusEffect(
         useCallback(() => {
             if (!isFocusedRef.current) {
                 isFocusedRef.current = true;
-                screenActivityService.enter(screenName);
+                screenActivityService.enter(screenName, user?.username);
             }
 
             return () => {
                 if (isFocusedRef.current) {
                     isFocusedRef.current = false;
-                    screenActivityService.leave(screenName);
+                    screenActivityService.leave(screenName, user?.username);
                 }
             };
-        }, [screenName]),
+        }, [screenName, user?.username]),
     );
 
     const publishRefresh = useCallback(
         (extraPayload = {}) => {
-            return screenActivityService.refresh(screenName, {
+            return screenActivityService.refresh(screenName, user?.username, {
                 reason: 'pull_down_refresh',
                 ...extraPayload,
             });
         },
-        [screenName],
+        [screenName, user?.username],
     );
 
     return useMemo(
