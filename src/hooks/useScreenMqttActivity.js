@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { screenActivityService } from '../services/screenActivityService';
@@ -20,6 +20,23 @@ const useScreenMqttActivity = screenName => {
                 }
             };
         }, [screenName]),
+    );
+
+    const publishRefresh = useCallback(
+        (extraPayload = {}) => {
+            return screenActivityService.refresh(screenName, {
+                reason: 'pull_down_refresh',
+                ...extraPayload,
+            });
+        },
+        [screenName],
+    );
+
+    return useMemo(
+        () => ({
+            publishRefresh,
+        }),
+        [publishRefresh],
     );
 };
 

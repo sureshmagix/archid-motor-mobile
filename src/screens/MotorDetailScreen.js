@@ -1,5 +1,12 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import HeaderBar from '../components/HeaderBar';
 import MotorPumpIcon from '../components/MotorPumpIcon';
@@ -92,7 +99,8 @@ const PhaseCard = ({ phase, title, value, unit, icon, color }) => (
 );
 
 const MotorDetailScreen = ({ navigation, route }) => {
-  useScreenMqttActivity('MotorDetail');
+  const { publishRefresh } = useScreenMqttActivity('MotorDetail');
+  const [refreshing, setRefreshing] = useState(false);
 
   const { logout } = useAuth();
   const { motors, connectionStatus, controlMotor } = useMqtt();
@@ -102,6 +110,19 @@ const MotorDetailScreen = ({ navigation, route }) => {
     () => motors.find(item => item.id === motorId),
     [motors, motorId]
   );
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+
+    publishRefresh({
+      motorId,
+      requestedData: 'MOTOR_DETAIL',
+    });
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 900);
+  }, [motorId, publishRefresh]);
 
   if (!motor) {
     return (
@@ -194,7 +215,17 @@ const MotorDetailScreen = ({ navigation, route }) => {
         onLogout={logout}
       />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent}
+            colors={[COLORS.accent]}
+          />
+        }>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
           <Text style={styles.backLinkText}>← Back to Home</Text>
         </TouchableOpacity>
