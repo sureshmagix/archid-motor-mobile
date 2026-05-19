@@ -64,16 +64,20 @@ const WifiProvisioningScreen = ({ navigation }) => {
             return false;
         }
 
-        const permissions = [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+        const permissions = [
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        ];
 
-        if (
-            Number(Platform.Version) >= 33 &&
-            PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES
-        ) {
-            permissions.push(PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES);
+        if (Number(Platform.Version) >= 33) {
+            permissions.push(
+                PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES ||
+                'android.permission.NEARBY_WIFI_DEVICES',
+            );
         }
 
         const results = await PermissionsAndroid.requestMultiple(permissions);
+
+        console.log('WiFi permission results:', results);
 
         return permissions.every(
             permission => results[permission] === PermissionsAndroid.RESULTS.GRANTED,

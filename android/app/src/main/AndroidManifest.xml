@@ -1,13 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Required for MQTT / WebSocket internet access -->
+    <!-- Internet / MQTT / WebSocket -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Required to detect Wi-Fi / mobile internet state -->
+    <!-- Network state -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Optional: useful later if MQTT must stay active when screen is off -->
+    <!-- Keep MQTT alive when needed -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- WiFi scan / WiFi info permissions -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+    <!-- Required for WiFi scanning on many Android versions -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Android 13+ Nearby WiFi permission -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
 
     <application
         android:name=".MainApplication"
