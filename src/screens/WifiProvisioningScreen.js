@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
+    PermissionsAndroid,
     Platform,
     ScrollView,
     StyleSheet,
@@ -11,58 +13,290 @@ import {
     View,
 } from 'react-native';
 
+import WifiManager from 'react-native-wifi-reborn';
+
 import HeaderBar from '../components/HeaderBar';
+import FloatingHomeButton from '../components/FloatingHomeButton';
+
 import { COLORS } from '../constants/colors';
-import { TOPICS } from '../constants/topics';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
-import { mqttService } from '../services/mqttService';
+
+const DEFAULT_SERVER_URL = 'http://192.168.4.1/wifi';
 
 const WifiProvisioningScreen = ({ navigation }) => {
     const { logout } = useAuth();
     const { connectionStatus } = useMqtt();
 
-    const [deviceId, setDeviceId] = useState('motor-1');
+    const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
+
+    const [networks, setNetworks] = useState([]);
+    const [selectedNetwork, setSelectedNetwork] = useState(null);
     const [ssid, setSsid] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleProvision = () => {
-        if (!deviceId.trim()) {
-            Alert.alert('Validation', 'Please enter device ID.');
-            return;
-        }
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-        if (!ssid.trim()) {
-            Alert.alert('Validation', 'Please enter WiFi SSID.');
-            return;
-        }
+    const [message, setMessage] = useState('');
 
-        const payload = {
-            deviceId: deviceId.trim(),
-            ssid: ssid.trim(),
-            password,
-            source: 'archid-motor-mobile',
-            timestamp: new Date().toISOString(),
-        };
-
-        const published = mqttService.publish(
-            TOPICS.wifiProvisioning(deviceId.trim()),
-            payload,
-            { qos: 1, retain: false },
+    const canSubmit = useMemo(() => {
+        return (
+            serverUrl.trim().length > 0 &&
+            ssid.trim().length > 0 &&
+            password.length > 0 &&
+            !isSubmitting
         );
+    }, [serverUrl, ssid, password, isSubmitting]);
 
-        if (!published) {
+    const requestAndroidWifiPermissions = async () => {
+        if (Platform.OS !== 'android') {
+            return false;
+        }
+
+        const permissions = [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+        if (
+            Number(Platform.Version) >= 33 &&
+            PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES
+        ) {
+            permissions.push(PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES);
+        }
+
+        const results = await PermissionsAndroid.requestMultiple(permissions);
+
+        return permissions.every(
+            permission => results[permission] === PermissionsAndroid.RESULTS.GRANTED,
+        );
+    };
+
+    const normalizeWifiList = list => {
+        let parsedList = list;
+
+        try {
+            if (typeof list === 'string') {
+                parsedList = JSON.parse(list);
+            }
+        } catch (error) {
+            console.log('WiFi list parse error:', error?.message || error);
+            return [];
+        }
+
+        if (!Array.isArray(parsedList)) {
+            return [];
+        }
+
+        const uniqueNetworks = new Map();
+
+        parsedList.forEach(item => {
+            const networkName = item?.SSID || item?.ssid || item?.name;
+
+            if (!networkName) {
+                return;
+            }
+
+            const signalLevel = Number(
+                item?.level ?? item?.signalLevel ?? item?.rssi ?? -999,
+            );
+
+            const existingNetwork = uniqueNetworks.get(networkName);
+
+            if (!existingNetwork || signalLevel > existingNetwork.level) {
+                uniqueNetworks.set(networkName, {
+                    ...item,
+                    SSID: networkName,
+                    level: signalLevel,
+                });
+            }
+        });
+
+        return Array.from(uniqueNetworks.values()).sort(
+            (a, b) => Number(b.level ?? -999) - Number(a.level ?? -999),
+        );
+    };
+
+    const getSignalText = level => {
+        const signal = Number(level ?? -999);
+
+        if (signal >= -50) {
+            return 'Excellent';
+        }
+
+        if (signal >= -60) {
+            return 'Good';
+        }
+
+        if (signal >= -70) {
+            return 'Fair';
+        }
+
+        return 'Weak';
+    };
+
+    const scanWifiNetworks = async () => {
+        if (Platform.OS !== 'android') {
             Alert.alert(
-                'MQTT Not Connected',
-                'WiFi provisioning command was not sent because MQTT is not connected.',
+                'Manual Entry Required',
+                'This phone does not allow normal apps to scan nearby WiFi networks. Please enter the WiFi name manually.',
             );
             return;
         }
 
-        Alert.alert(
-            'Provisioning Sent',
-            `WiFi credentials sent to ${deviceId.trim()}.`,
-        );
+        try {
+            setIsScanning(true);
+            setMessage('');
+            setIsDropdownOpen(false);
+
+            const hasPermission = await requestAndroidWifiPermissions();
+
+            if (!hasPermission) {
+                Alert.alert(
+                    'Permission Required',
+                    'Please allow WiFi and location permission to scan nearby networks.',
+                );
+                return;
+            }
+
+            const isWifiEnabled = await WifiManager.isEnabled();
+
+            if (!isWifiEnabled) {
+                Alert.alert(
+                    'WiFi Disabled',
+                    'Please turn on WiFi on this phone and try again.',
+                );
+                return;
+            }
+
+            const wifiList = await WifiManager.loadWifiList();
+            const cleanList = normalizeWifiList(wifiList);
+
+            setNetworks(cleanList);
+
+            if (cleanList.length === 0) {
+                setMessage('No WiFi networks found. You can enter the SSID manually.');
+                return;
+            }
+
+            setMessage(`${cleanList.length} WiFi network(s) found.`);
+            setIsDropdownOpen(true);
+        } catch (error) {
+            console.log('WiFi scan failed:', error);
+
+            Alert.alert(
+                'Scan Failed',
+                'Unable to scan WiFi networks. Make sure WiFi and location services are ON, then try again.',
+            );
+        } finally {
+            setIsScanning(false);
+        }
+    };
+
+    const selectNetwork = network => {
+        setSelectedNetwork(network);
+        setSsid(network.SSID);
+        setIsDropdownOpen(false);
+        setMessage(`Selected ${network.SSID}`);
+    };
+
+    const validateForm = () => {
+        const cleanUrl = serverUrl.trim();
+        const cleanSsid = ssid.trim();
+
+        if (!cleanUrl) {
+            Alert.alert('Missing Server URL', 'Please enter the server URL.');
+            return false;
+        }
+
+        if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+            Alert.alert(
+                'Invalid Server URL',
+                'Please enter a full URL starting with http:// or https://',
+            );
+            return false;
+        }
+
+        if (!cleanSsid) {
+            Alert.alert('Missing WiFi Name', 'Please select or type the WiFi name.');
+            return false;
+        }
+
+        if (!password) {
+            Alert.alert('Missing Password', 'Please enter the WiFi password.');
+            return false;
+        }
+
+        return true;
+    };
+
+    const connectMotorToWifi = async () => {
+        if (!validateForm()) {
+            return;
+        }
+
+        const cleanUrl = serverUrl.trim();
+        const cleanSsid = ssid.trim();
+
+        const payload = {
+            ssid: cleanSsid,
+            wifiName: cleanSsid,
+            password,
+        };
+
+        try {
+            setIsSubmitting(true);
+            setMessage('Sending WiFi details...');
+
+            const response = await fetch(cleanUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const responseText = await response.text();
+
+            let responseJson = null;
+
+            try {
+                responseJson = responseText ? JSON.parse(responseText) : null;
+            } catch {
+                responseJson = null;
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    responseJson?.message ||
+                    responseText ||
+                    `Connection failed. HTTP ${response.status}`,
+                );
+            }
+
+            setMessage('WiFi details sent successfully.');
+
+            Alert.alert(
+                'Success',
+                responseJson?.message || 'Motor WiFi connection request sent.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => navigation.navigate('Home'),
+                    },
+                ],
+            );
+        } catch (error) {
+            console.log('WiFi provision failed:', error);
+
+            const errorMessage =
+                error?.message || 'Unable to send WiFi details. Please try again.';
+
+            setMessage(errorMessage);
+            Alert.alert('Connection Failed', errorMessage);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -77,49 +311,99 @@ const WifiProvisioningScreen = ({ navigation }) => {
             <KeyboardAvoidingView
                 style={styles.keyboard}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView contentContainerStyle={styles.content}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.navigate('Home')}>
-                        <Text style={styles.backText}>← Home</Text>
-                    </TouchableOpacity>
-
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}>
                     <View style={styles.card}>
-                        <Text style={styles.title}>WiFi Provisioning</Text>
-                        <Text style={styles.description}>
-                            Send WiFi credentials to the selected device through MQTT. Your
-                            ESP32 firmware should subscribe to the provisioning topic.
+                        <Text style={styles.title}>Motor WiFi Setup</Text>
+                        <Text style={styles.subtitle}>
+                            Select a WiFi network, enter password, and connect the motor to
+                            WiFi.
                         </Text>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Device ID</Text>
+                            <Text style={styles.label}>Server URL</Text>
                             <TextInput
-                                value={deviceId}
-                                onChangeText={setDeviceId}
-                                placeholder="motor-1"
+                                value={serverUrl}
+                                onChangeText={setServerUrl}
+                                placeholder="http://192.168.4.1/wifi"
                                 placeholderTextColor={COLORS.muted}
                                 autoCapitalize="none"
+                                autoCorrect={false}
+                                keyboardType="url"
                                 style={styles.input}
                             />
-                        </View>
-
-                        <View style={styles.topicBox}>
-                            <Text style={styles.topicLabel}>Provisioning Topic</Text>
-                            <Text style={styles.topicValue}>
-                                {TOPICS.wifiProvisioning(deviceId.trim() || 'device-id')}
-                            </Text>
                         </View>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>WiFi SSID</Text>
-                            <TextInput
-                                value={ssid}
-                                onChangeText={setSsid}
-                                placeholder="Enter WiFi name"
-                                placeholderTextColor={COLORS.muted}
-                                autoCapitalize="none"
-                                style={styles.input}
-                            />
+                            <Text style={styles.label}>WiFi Network</Text>
+
+                            <View style={styles.searchInputWrap}>
+                                <TextInput
+                                    value={ssid}
+                                    onChangeText={value => {
+                                        setSsid(value);
+                                        setSelectedNetwork(null);
+                                    }}
+                                    placeholder="Select or type WiFi name"
+                                    placeholderTextColor={COLORS.muted}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    style={styles.searchInput}
+                                />
+
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    style={styles.searchButton}
+                                    onPress={scanWifiNetworks}
+                                    disabled={isScanning}>
+                                    {isScanning ? (
+                                        <ActivityIndicator size="small" color={COLORS.primary} />
+                                    ) : (
+                                        <Text style={styles.searchIcon}>⌕</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+
+                            {isDropdownOpen && (
+                                <View style={styles.dropdownList}>
+                                    {networks.length === 0 ? (
+                                        <Text style={styles.emptyText}>
+                                            No networks found. Enter WiFi name manually.
+                                        </Text>
+                                    ) : (
+                                        networks.map((network, index) => {
+                                            const isSelected =
+                                                selectedNetwork?.SSID === network.SSID ||
+                                                ssid === network.SSID;
+
+                                            return (
+                                                <TouchableOpacity
+                                                    key={`${network.SSID}-${index}`}
+                                                    activeOpacity={0.82}
+                                                    style={[
+                                                        styles.networkItem,
+                                                        isSelected && styles.networkItemSelected,
+                                                    ]}
+                                                    onPress={() => selectNetwork(network)}>
+                                                    <View style={styles.networkInfo}>
+                                                        <Text style={styles.networkName} numberOfLines={1}>
+                                                            {network.SSID}
+                                                        </Text>
+                                                        <Text style={styles.networkMeta}>
+                                                            Signal: {getSignalText(network.level)}
+                                                        </Text>
+                                                    </View>
+
+                                                    {isSelected && (
+                                                        <Text style={styles.selectedTick}>✓</Text>
+                                                    )}
+                                                </TouchableOpacity>
+                                            );
+                                        })
+                                    )}
+                                </View>
+                            )}
                         </View>
 
                         <View style={styles.formGroup}>
@@ -135,13 +419,35 @@ const WifiProvisioningScreen = ({ navigation }) => {
                         </View>
 
                         <TouchableOpacity
-                            style={styles.provisionButton}
-                            onPress={handleProvision}>
-                            <Text style={styles.provisionText}>Send WiFi Config</Text>
+                            activeOpacity={0.9}
+                            style={[
+                                styles.connectButton,
+                                !canSubmit && styles.disabledButton,
+                            ]}
+                            disabled={!canSubmit}
+                            onPress={connectMotorToWifi}>
+                            {isSubmitting ? (
+                                <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                                <>
+                                    <Text style={styles.connectIcon}>↗</Text>
+                                    <Text style={styles.connectButtonText}>
+                                        Connect Motor to Wifi
+                                    </Text>
+                                </>
+                            )}
                         </TouchableOpacity>
                     </View>
+
+                    {message ? (
+                        <View style={styles.messageBox}>
+                            <Text style={styles.messageText}>{message}</Text>
+                        </View>
+                    ) : null}
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <FloatingHomeButton navigation={navigation} />
         </View>
     );
 };
@@ -151,27 +457,16 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.page,
     },
+
     keyboard: {
         flex: 1,
     },
+
     content: {
         padding: 16,
-        paddingBottom: 30,
+        paddingBottom: 100,
     },
-    backButton: {
-        alignSelf: 'flex-start',
-        backgroundColor: COLORS.card,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        marginBottom: 14,
-    },
-    backText: {
-        color: COLORS.text,
-        fontWeight: '800',
-    },
+
     card: {
         backgroundColor: COLORS.card,
         borderRadius: 18,
@@ -184,65 +479,175 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 5 },
         elevation: 2,
     },
+
     title: {
+        color: COLORS.text,
         fontSize: 20,
         fontWeight: '900',
-        color: COLORS.text,
     },
-    description: {
+
+    subtitle: {
         color: COLORS.muted,
         marginTop: 6,
-        marginBottom: 20,
+        marginBottom: 18,
+        fontSize: 13,
         lineHeight: 20,
     },
+
     formGroup: {
         marginBottom: 16,
     },
+
     label: {
         color: COLORS.text,
+        fontSize: 13,
         fontWeight: '900',
         marginBottom: 7,
     },
+
     input: {
         backgroundColor: '#f8fafc',
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: COLORS.border,
-        borderRadius: 12,
         paddingHorizontal: 12,
         paddingVertical: 11,
         color: COLORS.text,
         fontSize: 14,
+        fontWeight: '600',
     },
-    topicBox: {
-        backgroundColor: '#eef6fb',
+
+    searchInputWrap: {
+        minHeight: 46,
+        backgroundColor: '#f8fafc',
         borderRadius: 12,
-        padding: 12,
         borderWidth: 1,
-        borderColor: '#d7edf9',
-        marginBottom: 16,
+        borderColor: COLORS.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        overflow: 'hidden',
     },
-    topicLabel: {
+
+    searchInput: {
+        flex: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 11,
+        color: COLORS.text,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+
+    searchButton: {
+        width: 46,
+        height: 46,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderLeftWidth: 1,
+        borderLeftColor: COLORS.border,
+        backgroundColor: '#ffffff',
+    },
+
+    searchIcon: {
+        color: COLORS.primary,
+        fontSize: 25,
+        fontWeight: '900',
+        lineHeight: 28,
+    },
+
+    dropdownList: {
+        marginTop: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+        maxHeight: 230,
+    },
+
+    networkItem: {
+        minHeight: 46,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    networkItemSelected: {
+        backgroundColor: '#eef6fb',
+    },
+
+    networkInfo: {
+        flex: 1,
+        paddingRight: 10,
+    },
+
+    networkName: {
+        color: COLORS.text,
+        fontSize: 13,
+        fontWeight: '900',
+    },
+
+    networkMeta: {
         color: COLORS.muted,
         fontSize: 11,
-        fontWeight: '800',
-        marginBottom: 4,
+        marginTop: 2,
     },
-    topicValue: {
-        color: COLORS.text,
+
+    selectedTick: {
+        color: COLORS.success,
+        fontSize: 17,
         fontWeight: '900',
+    },
+
+    emptyText: {
+        color: COLORS.muted,
+        padding: 12,
+        textAlign: 'center',
         fontSize: 12,
     },
-    provisionButton: {
-        backgroundColor: COLORS.accent,
+
+    connectButton: {
+        minHeight: 48,
         borderRadius: 14,
-        paddingVertical: 14,
+        backgroundColor: COLORS.success,
         alignItems: 'center',
-        marginTop: 4,
+        justifyContent: 'center',
+        flexDirection: 'row',
     },
-    provisionText: {
-        color: '#fff',
+
+    connectIcon: {
+        color: '#ffffff',
+        fontSize: 16,
         fontWeight: '900',
+        marginRight: 8,
+    },
+
+    connectButtonText: {
+        color: '#ffffff',
         fontSize: 15,
+        fontWeight: '900',
+    },
+
+    disabledButton: {
+        opacity: 0.6,
+    },
+
+    messageBox: {
+        backgroundColor: '#e8f8f1',
+        borderRadius: 14,
+        padding: 14,
+        marginTop: 14,
+        borderWidth: 1,
+        borderColor: '#cdeede',
+    },
+
+    messageText: {
+        color: COLORS.success,
+        fontWeight: '800',
+        lineHeight: 20,
     },
 });
 

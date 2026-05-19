@@ -25,6 +25,7 @@
     "react-native-screens": "^4.25.0",
     "react-native-svg": "^15.15.5",
     "react-native-url-polyfill": "^3.0.0",
+    "react-native-wifi-reborn": "^4.13.6",
     "stream-browserify": "^3.0.0",
     "util": "^0.12.5"
   },
