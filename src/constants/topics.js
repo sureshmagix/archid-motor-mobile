@@ -10,5 +10,7 @@ export const TOPICS = {
   motorConfirmation: motorId => `archidtech/motor/${motorId}/confirmation`,
   motorTelemetry: motorId => `archidtech/motor/${motorId}/telemetry`,
 
+  wifiProvisioning: deviceId => `archidtech/device/${deviceId}/wifi/provision`,
+
   mobileHomeVisit: 'archidtech/mobile/home/visit',
 };

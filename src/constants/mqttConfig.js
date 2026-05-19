@@ -9,16 +9,23 @@ export const MQTT_CONFIG = {
   reconnectPeriod: 10000,
   connectTimeout: 30000,
 
-  // Keep this lower than common proxy idle timeout.
-  // This helps keep the WebSocket/MQTT connection alive.
   keepalive: 25,
 
   qos: 1,
   clean: true,
   resubscribe: true,
 
-  // UI will show RECONNECTING only if MQTT is down for more than this time.
   reconnectUiGracePeriodMs: 30000,
 };
 
 export const getMqttUrl = () => MQTT_CONFIG.brokerUrl;
+
+export const updateMqttConfig = nextConfig => {
+  MQTT_CONFIG.brokerUrl = nextConfig.brokerUrl || MQTT_CONFIG.brokerUrl;
+  MQTT_CONFIG.username = nextConfig.username ?? MQTT_CONFIG.username;
+  MQTT_CONFIG.password = nextConfig.password ?? MQTT_CONFIG.password;
+  MQTT_CONFIG.clientIdPrefix =
+    nextConfig.clientIdPrefix || MQTT_CONFIG.clientIdPrefix;
+
+  return MQTT_CONFIG;
+};

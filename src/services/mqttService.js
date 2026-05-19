@@ -50,6 +50,10 @@ class MqttService extends EventEmitter {
     this.lastErrorMessage = '';
     this.lastLogTimes = new Map();
 
+    // Used to ignore events from older MQTT clients after reconnect.
+    this.clientGeneration = 0;
+    this.activeGeneration = 0;
+
     this.setMaxListeners(50);
   }
 
@@ -100,7 +104,10 @@ class MqttService extends EventEmitter {
     console.log(`MQTT connecting to ${brokerUrl} as ${clientId}`);
 
     try {
-      this.client = mqttConnect(brokerUrl, {
+      const generation = ++this.clientGeneration;
+      this.activeGeneration = generation;
+
+      const client = mqttConnect(brokerUrl, {
         clientId,
         username: MQTT_CONFIG.username,
         password: MQTT_CONFIG.password,
@@ -119,23 +126,35 @@ class MqttService extends EventEmitter {
         forceNativeWebSocket: true,
       });
 
-      this.bindClientEvents();
+      this.client = client;
+      this.bindClientEvents(client, generation);
+
       return this.client;
     } catch (error) {
       this.isConnecting = false;
+      this.client = null;
+
       const message = error?.message || 'MQTT connect exception';
       console.log('MQTT connect exception:', message);
       this.emitStatus('ERROR', message);
+
       return null;
     }
   }
 
-  bindClientEvents() {
-    if (!this.client) {
+  bindClientEvents(client, generation) {
+    if (!client) {
       return;
     }
 
-    this.client.on('connect', () => {
+    const isActiveClient = () =>
+      this.client === client && this.activeGeneration === generation;
+
+    client.on('connect', () => {
+      if (!isActiveClient()) {
+        return;
+      }
+
       this.isConnecting = false;
       this.hasConnectedOnce = true;
       this.status = 'CONNECTED';
@@ -149,17 +168,26 @@ class MqttService extends EventEmitter {
       this.logTopics();
     });
 
-    this.client.on('reconnect', () => {
+    client.on('reconnect', () => {
+      if (!isActiveClient()) {
+        return;
+      }
+
       if (this.isManuallyDisconnected) {
         return;
       }
 
       // Do not immediately show reconnecting in UI.
+      // This avoids UI flicker during short network drops.
       console.log('MQTT reconnecting silently...');
       this.scheduleReconnectUiStatus();
     });
 
-    this.client.on('close', () => {
+    client.on('close', () => {
+      if (!isActiveClient()) {
+        return;
+      }
+
       this.isConnecting = false;
 
       if (this.isManuallyDisconnected) {
@@ -182,7 +210,11 @@ class MqttService extends EventEmitter {
       this.scheduleReconnectUiStatus();
     });
 
-    this.client.on('offline', () => {
+    client.on('offline', () => {
+      if (!isActiveClient()) {
+        return;
+      }
+
       if (this.isManuallyDisconnected) {
         return;
       }
@@ -191,7 +223,11 @@ class MqttService extends EventEmitter {
       this.scheduleReconnectUiStatus();
     });
 
-    this.client.on('error', error => {
+    client.on('error', error => {
+      if (!isActiveClient()) {
+        return;
+      }
+
       const errorMessage = error?.message || 'MQTT connection error';
 
       console.log('MQTT error:', errorMessage);
@@ -205,7 +241,11 @@ class MqttService extends EventEmitter {
       }
     });
 
-    this.client.on('message', (topic, message) => {
+    client.on('message', (topic, message) => {
+      if (!isActiveClient()) {
+        return;
+      }
+
       const payloadText = message?.toString?.() ?? String(message || '');
 
       this.throttledLog(topic, payloadText);
@@ -250,6 +290,11 @@ class MqttService extends EventEmitter {
       return;
     }
 
+    const gracePeriod =
+      MQTT_CONFIG.reconnectUiGracePeriodMs !== undefined
+        ? MQTT_CONFIG.reconnectUiGracePeriodMs
+        : 30000;
+
     // Keep UI stable for short drops.
     // If it reconnects within the grace period, user will not see "Connecting...".
     if (this.hasConnectedOnce && this.lastStatus === 'CONNECTED') {
@@ -259,7 +304,7 @@ class MqttService extends EventEmitter {
         if (!this.client?.connected && !this.isManuallyDisconnected) {
           this.emitStatus('RECONNECTING', errorMessage);
         }
-      }, MQTT_CONFIG.reconnectUiGracePeriodMs);
+      }, gracePeriod);
 
       return;
     }
@@ -295,19 +340,28 @@ class MqttService extends EventEmitter {
   }
 
   subscribeNow(topic, options = { qos: MQTT_CONFIG.qos }) {
-    if (!this.client?.connected) {
-      this.pendingTopics.set(topic, options);
+    if (!topic) {
       return;
     }
 
-    this.client.subscribe(topic, options, error => {
+    const finalOptions = {
+      qos: options?.qos ?? MQTT_CONFIG.qos,
+    };
+
+    if (!this.client?.connected) {
+      this.pendingTopics.set(topic, finalOptions);
+      return;
+    }
+
+    this.client.subscribe(topic, finalOptions, error => {
       if (error) {
         console.log(`MQTT subscribe error (${topic}):`, error.message);
+        this.pendingTopics.set(topic, finalOptions);
         this.emitStatus('ERROR', error.message);
         return;
       }
 
-      this.topics.set(topic, options);
+      this.topics.set(topic, finalOptions);
       this.pendingTopics.delete(topic);
 
       console.log(`MQTT subscribed: ${topic}`);
@@ -320,15 +374,13 @@ class MqttService extends EventEmitter {
     }
 
     const allTopics = new Map([
-      ...this.pendingTopics.entries(),
       ...this.topics.entries(),
+      ...this.pendingTopics.entries(),
     ]);
 
     allTopics.forEach((options, topic) => {
       this.subscribeNow(topic, options);
     });
-
-    this.pendingTopics.clear();
   }
 
   unsubscribe(topic) {
@@ -368,7 +420,15 @@ class MqttService extends EventEmitter {
       return false;
     }
 
-    const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    let message = '';
+
+    try {
+      message = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    } catch (error) {
+      console.log('MQTT payload stringify error:', error?.message || error);
+      this.emitStatus('ERROR', 'Invalid MQTT payload');
+      return false;
+    }
 
     this.client.publish(
       topic,
@@ -391,13 +451,55 @@ class MqttService extends EventEmitter {
     return true;
   }
 
+  reconnectWithLatestConfig() {
+    console.log('MQTT reconnect requested with latest configuration');
+
+    this.isManuallyDisconnected = false;
+    this.clearReconnectUiTimer();
+
+    const oldClient = this.client;
+
+    // Invalidate events from the old client immediately.
+    this.activeGeneration = ++this.clientGeneration;
+
+    if (oldClient) {
+      try {
+        if (typeof oldClient.removeAllListeners === 'function') {
+          oldClient.removeAllListeners();
+        }
+
+        oldClient.end(true);
+      } catch (error) {
+        console.log('MQTT reconnect close error:', error?.message || error);
+      }
+    }
+
+    this.client = null;
+    this.isConnecting = false;
+    this.hasConnectedOnce = false;
+    this.status = 'CONNECTING';
+
+    this.emitStatus('CONNECTING');
+
+    return this.connect();
+  }
+
   disconnect() {
     this.isManuallyDisconnected = true;
     this.clearReconnectUiTimer();
 
+    const oldClient = this.client;
+
+    // Invalidate events from the old client immediately.
+    this.activeGeneration = ++this.clientGeneration;
+
     try {
-      if (this.client) {
-        this.client.end(true, () => {
+      if (oldClient) {
+        if (typeof oldClient.removeAllListeners === 'function') {
+          oldClient.removeAllListeners();
+        }
+
+        oldClient.end(true, () => {
           console.log('MQTT ended cleanly');
         });
       }
@@ -423,20 +525,34 @@ class MqttService extends EventEmitter {
     this.messageListeners.clear();
     this.topics.clear();
     this.pendingTopics.clear();
+    this.lastLogTimes.clear();
+
+    this.removeAllListeners();
   }
 
   onStatus(listener) {
+    if (typeof listener !== 'function') {
+      return () => { };
+    }
+
     this.statusListeners.add(listener);
 
     // Immediately send current MQTT status to the new listener.
     // This prevents UI from staying in CONNECTING when MQTT is already connected.
-    const currentStatus = this.client?.connected ? 'CONNECTED' : this.status || 'OFFLINE';
+    const currentStatus = this.client?.connected
+      ? 'CONNECTED'
+      : this.status || 'OFFLINE';
+
     listener(currentStatus, this.lastErrorMessage || '');
 
     return () => this.statusListeners.delete(listener);
   }
 
   onMessage(listener) {
+    if (typeof listener !== 'function') {
+      return () => { };
+    }
+
     this.messageListeners.add(listener);
     return () => this.messageListeners.delete(listener);
   }
