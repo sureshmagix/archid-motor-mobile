@@ -85,6 +85,7 @@ export const MqttProvider = ({ children }) => {
     'No MQTT messages received yet',
   );
   const [motors, setMotors] = useState(INITIAL_MOTORS);
+  const [selectedIcons, setSelectedIcons] = useState({});
 
   /**
    * Tracks which prefix is already subscribed.
@@ -378,6 +379,13 @@ export const MqttProvider = ({ children }) => {
     [topicPrefix, user?.username],
   );
 
+  const setMotorIcon = useCallback((motorId, iconStyle) => {
+    setSelectedIcons(prev => ({
+      ...prev,
+      [motorId]: iconStyle,
+    }));
+  }, []);
+
   const value = useMemo(
     () => ({
       connectionStatus,
@@ -387,6 +395,8 @@ export const MqttProvider = ({ children }) => {
       selectMotor,
       controlMotor,
       topicPrefix,
+      selectedIcons,
+      setMotorIcon,
     }),
     [
       connectionStatus,
@@ -396,6 +406,8 @@ export const MqttProvider = ({ children }) => {
       selectMotor,
       controlMotor,
       topicPrefix,
+      selectedIcons,
+      setMotorIcon,
     ],
   );
 

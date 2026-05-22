@@ -2,9 +2,12 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS, statusColor } from '../constants/colors';
 import MotorPumpIcon from './MotorPumpIcon';
+import { useMqtt } from '../context/MqttContext';
 
 const MotorCard = ({ motor, onPress }) => {
+  const { selectedIcons } = useMqtt();
   const color = statusColor(motor.status);
+  const iconStyle = selectedIcons?.[motor.id] || 'DEFAULT';
 
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(motor)} style={[styles.card, { borderTopColor: color }]}>
@@ -20,7 +23,7 @@ const MotorCard = ({ motor, onPress }) => {
       </View>
 
       <View style={styles.iconWrap}>
-        <MotorPumpIcon size={68} color={color} status={motor.status} />
+        <MotorPumpIcon size={68} color={color} status={motor.status} styleName={iconStyle} />
       </View>
 
       <View style={styles.footer}>
