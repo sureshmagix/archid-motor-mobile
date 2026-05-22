@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -38,7 +39,7 @@ const HomeScreen = ({ navigation }) => {
 
   const overallColor =
     faultCount > 0
-      ? COLORS.warning
+      ? COLORS.danger
       : runningCount > 0
         ? COLORS.success
         : COLORS.off;
@@ -59,7 +60,7 @@ const HomeScreen = ({ navigation }) => {
     faultCount > 0
       ? `${faultCount} fault${faultCount > 1 ? 's' : ''} detected`
       : runningCount > 0
-        ? 'Running'
+        ? 'Motors running'
         : 'All motors stopped';
 
   const handleMotorPress = motor => {
@@ -114,14 +115,14 @@ const HomeScreen = ({ navigation }) => {
             caption={motorCaption}
             accentColor={overallColor}
             compact>
-            <MotorPumpIcon size={24} color={overallColor} />
+            <MotorPumpIcon size={24} color={overallColor} status={runningCount > 0 ? 'ON' : 'OFF'} />
           </StatusCard>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Motors</Text>
+          <Text style={styles.sectionTitle}>System Motors</Text>
           <Text style={styles.sectionMeta}>
-            {totalMotors} device{totalMotors > 1 ? 's' : ''}
+            {totalMotors} device{totalMotors > 1 ? 's' : ''} active
           </Text>
         </View>
 
@@ -135,9 +136,16 @@ const HomeScreen = ({ navigation }) => {
           ))}
         </View>
 
-        <View style={styles.messageBox}>
-          <View style={styles.messageHeader}>
-            <Text style={styles.messageTitle}>Last MQTT Message</Text>
+        <View style={styles.terminalBox}>
+          <View style={styles.terminalHeader}>
+            <View style={styles.terminalTitleRow}>
+              <Text style={styles.terminalTitle}>MQTT LIVE FEED</Text>
+              <View style={styles.terminalTabs}>
+                <View style={[styles.terminalTabDot, { backgroundColor: '#ef4444' }]} />
+                <View style={[styles.terminalTabDot, { backgroundColor: '#eab308' }]} />
+                <View style={[styles.terminalTabDot, { backgroundColor: '#10b981' }]} />
+              </View>
+            </View>
             <View
               style={[
                 styles.statusDot,
@@ -153,16 +161,16 @@ const HomeScreen = ({ navigation }) => {
 
           <Text
             style={[
-              styles.messageText,
+              styles.terminalText,
               {
                 color:
                   connectionStatus === 'CONNECTED'
-                    ? COLORS.success
-                    : statusColor(connectionStatus),
+                    ? '#10b981'
+                    : '#ef4444',
               },
             ]}
             numberOfLines={4}>
-            {lastMessage || 'No MQTT messages received yet'}
+            {lastMessage || '$ waiting for MQTT connection logs...'}
           </Text>
         </View>
 
@@ -186,25 +194,26 @@ const styles = StyleSheet.create({
   masterPanel: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 22,
+    marginBottom: 24,
   },
 
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
 
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: COLORS.text,
+    letterSpacing: 0.2,
   },
 
   sectionMeta: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: COLORS.muted,
   },
 
@@ -214,43 +223,66 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  messageBox: {
+  terminalBox: {
     marginTop: 8,
-    marginBottom: 14,
-    backgroundColor: COLORS.card,
-    borderRadius: 14,
+    marginBottom: 16,
+    backgroundColor: '#0f172a', // Slate-900 Dark background
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#334155', // Slate-700
     shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
 
-  messageHeader: {
+  terminalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b', // Slate-800 divider
+    paddingBottom: 8,
   },
 
-  messageTitle: {
-    color: COLORS.text,
+  terminalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  terminalTitle: {
+    color: '#94a3b8', // Slate-400
     fontWeight: '900',
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+
+  terminalTabs: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+
+  terminalTabDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 
   statusDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 
-  messageText: {
+  terminalText: {
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
   },
 });
 

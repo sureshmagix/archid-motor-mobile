@@ -81,15 +81,15 @@ const MetricCard = ({ icon, title, value, subtitle, color }) => (
   </View>
 );
 
-const PhaseCard = ({ phase, title, value, unit, icon, color }) => (
-  <View style={styles.phaseCard}>
+const PhaseCard = ({ phase, title, value, unit, icon, color, bgLight }) => (
+  <View style={[styles.phaseCard, bgLight ? { backgroundColor: bgLight, borderColor: `${color}33`, borderWidth: 1 } : null]}>
     <View style={styles.phaseHeader}>
       <View style={[styles.phaseDot, { backgroundColor: color }]} />
       <Text style={styles.phaseName}>{phase}</Text>
     </View>
 
     <View style={styles.phaseBody}>
-      <Text style={styles.phaseIcon}>{icon}</Text>
+      <Text style={[styles.phaseIcon, bgLight ? { backgroundColor: 'rgba(255, 255, 255, 0.75)' } : null]}>{icon}</Text>
       <View style={styles.phaseTextBox}>
         <Text style={styles.phaseTitle}>{title}</Text>
         <Text style={styles.phaseValue}>{formatElectricalValue(value, unit)}</Text>
@@ -253,7 +253,11 @@ const MotorDetailScreen = ({ navigation, route }) => {
               </View>
 
               <View style={styles.motorIconBox}>
-                <MotorPumpIcon size={76} color={motorStatusColor || motorBaseColor} />
+                <MotorPumpIcon
+                  size={76}
+                  color={motorStatusColor || motorBaseColor}
+                  status={motorStatus}
+                />
               </View>
             </View>
 
@@ -261,6 +265,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={[styles.actionButton, styles.onButton]}
                 onPress={() => controlMotor(motor, 'ON')}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionText}>⏻ Turn ON</Text>
               </TouchableOpacity>
@@ -268,6 +273,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={[styles.actionButton, styles.offButton]}
                 onPress={() => controlMotor(motor, 'OFF')}
+                activeOpacity={0.8}
               >
                 <Text style={styles.actionText}>■ Turn OFF</Text>
               </TouchableOpacity>
@@ -305,6 +311,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 unit="V"
                 icon="⚡"
                 color="#ef4444"
+                bgLight="#fef2f2"
               />
 
               <PhaseCard
@@ -314,6 +321,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 unit="V"
                 icon="⚡"
                 color="#f59e0b"
+                bgLight="#fffbeb"
               />
 
               <PhaseCard
@@ -323,6 +331,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 unit="V"
                 icon="⚡"
                 color="#2563eb"
+                bgLight="#eff6ff"
               />
             </View>
           </View>
@@ -341,6 +350,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 unit="A"
                 icon="∿"
                 color="#ef4444"
+                bgLight="#fef2f2"
               />
 
               <PhaseCard
@@ -350,6 +360,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 unit="A"
                 icon="∿"
                 color="#f59e0b"
+                bgLight="#fffbeb"
               />
 
               <PhaseCard
@@ -359,6 +370,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 unit="A"
                 icon="∿"
                 color="#2563eb"
+                bgLight="#eff6ff"
               />
             </View>
           </View>
@@ -494,14 +506,24 @@ const styles = StyleSheet.create({
   },
   onButton: {
     backgroundColor: COLORS.success,
+    borderBottomWidth: 3,
+    borderBottomColor: '#059669', // Darker emerald-600
+    borderColor: '#34d399',      // Lighter emerald-400
+    borderWidth: 1,
   },
   offButton: {
     backgroundColor: COLORS.off,
+    borderBottomWidth: 3,
+    borderBottomColor: '#475569', // Darker slate-600
+    borderColor: '#94a3b8',      // Lighter slate-400
+    borderWidth: 1,
   },
   actionText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
 
   liveStatusPanel: {

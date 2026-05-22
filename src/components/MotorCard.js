@@ -9,24 +9,24 @@ const MotorCard = ({ motor, onPress }) => {
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={() => onPress(motor)} style={[styles.card, { borderTopColor: color }]}>
       <View style={styles.topRow}>
-        <View>
-          <Text style={styles.name}>{motor.name}</Text>
-          <Text style={styles.subText}>Tap to open details</Text>
+        <View style={styles.titleArea}>
+          <Text style={styles.name} numberOfLines={1}>{motor.name}</Text>
+          <Text style={styles.subText}>Tap for telemetry</Text>
         </View>
-        <View style={[styles.statusPill, { backgroundColor: `${color}18` }]}>
+        <View style={[styles.statusPill, { backgroundColor: `${color}10` }]}>
           <View style={[styles.statusDot, { backgroundColor: color }]} />
           <Text style={[styles.statusText, { color }]}>{motor.status}</Text>
         </View>
       </View>
 
       <View style={styles.iconWrap}>
-        <MotorPumpIcon size={78} color={color} />
+        <MotorPumpIcon size={68} color={color} status={motor.status} />
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerLabel}>Last update</Text>
+        <Text style={styles.footerLabel}>LAST SEEN</Text>
         <Text style={styles.footerValue} numberOfLines={1}>
-          {motor.updatedAt ? new Date(motor.updatedAt).toLocaleTimeString() : 'Waiting'}
+          {motor.updatedAt ? new Date(motor.updatedAt).toLocaleTimeString() : 'Waiting for connection'}
         </Text>
       </View>
     </TouchableOpacity>
@@ -36,69 +36,85 @@ const MotorCard = ({ motor, onPress }) => {
 const styles = StyleSheet.create({
   card: {
     width: '48%',
-    minHeight: 190,
+    minHeight: 198,
     backgroundColor: COLORS.card,
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 14,
     borderTopWidth: 4,
-    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 16,
     shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
+    justifyContent: 'space-between',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: 4,
+  },
+  titleArea: {
+    flex: 1,
+    minWidth: 0,
   },
   name: {
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
+    letterSpacing: -0.2,
   },
   subText: {
     color: COLORS.muted,
-    fontSize: 11,
-    marginTop: 4,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 7,
-    borderRadius: 14,
+    paddingHorizontal: 8,
+    borderRadius: 99,
   },
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '900',
+    letterSpacing: 0.2,
   },
   iconWrap: {
-    flex: 1,
+    height: 76,
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 10,
   },
   footer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    paddingVertical: 8,
+    backgroundColor: COLORS.page,
+    borderRadius: 12,
+    paddingVertical: 7,
     paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   footerLabel: {
-    fontSize: 10,
+    fontSize: 9,
+    fontWeight: '900',
     color: COLORS.muted,
+    letterSpacing: 0.5,
   },
   footerValue: {
-    marginTop: 2,
+    marginTop: 1,
     color: COLORS.text,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
 });

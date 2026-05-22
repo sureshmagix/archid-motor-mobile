@@ -7,14 +7,12 @@ const StatusCard = ({
   title,
   value,
   caption,
-  accentColor = COLORS.accent || '#2563EB',
+  accentColor = COLORS.accent || '#6366f1',
   compact = false,
   children,
 }) => {
   return (
     <View style={[styles.card, compact && styles.compactCard]}>
-      <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
-
       <View style={styles.topRow}>
         <View style={styles.textBlock}>
           <Text style={styles.title} numberOfLines={1}>
@@ -30,8 +28,8 @@ const StatusCard = ({
           style={[
             styles.iconBox,
             {
-              backgroundColor: `${accentColor}18`,
-              borderColor: `${accentColor}35`,
+              backgroundColor: `${accentColor}10`, // extra translucent
+              borderColor: `${accentColor}25`,
             },
           ]}>
           {children ? (
@@ -52,81 +50,72 @@ const StatusCard = ({
 const styles = StyleSheet.create({
   card: {
     width: '48%',
-    minHeight: 118,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 15,
+    minHeight: 114,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
     overflow: 'hidden',
 
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
 
   compactCard: {
-    minHeight: 112,
-  },
-
-  accentBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
+    minHeight: 108,
   },
 
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    gap: 8,
   },
 
   textBlock: {
     flex: 1,
-    paddingLeft: 2,
   },
 
   title: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#64748B',
+    color: COLORS.muted,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 8,
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
 
   value: {
     fontSize: 22,
     fontWeight: '900',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
 
   caption: {
     marginTop: 10,
     fontSize: 11,
     lineHeight: 16,
-    color: '#64748B',
-    fontWeight: '600',
+    color: COLORS.muted,
+    fontWeight: '700',
   },
 
   iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
 
   statusDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 });
 

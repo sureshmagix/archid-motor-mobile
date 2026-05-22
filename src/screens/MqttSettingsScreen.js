@@ -30,6 +30,11 @@ const MqttSettingsScreen = ({ navigation }) => {
         MQTT_CONFIG.clientIdPrefix,
     );
 
+    const [isUrlFocused, setIsUrlFocused] = useState(false);
+    const [isUserFocused, setIsUserFocused] = useState(false);
+    const [isPassFocused, setIsPassFocused] = useState(false);
+    const [isClientFocused, setIsClientFocused] = useState(false);
+
     const finalUrl = brokerUrl.trim();
 
     const handleSave = () => {
@@ -73,11 +78,11 @@ const MqttSettingsScreen = ({ navigation }) => {
             <KeyboardAvoidingView
                 style={styles.keyboard}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView contentContainerStyle={styles.content}>
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <TouchableOpacity
                         style={styles.backButton}
                         onPress={() => navigation.navigate('Home')}>
-                        <Text style={styles.backText}>← Home</Text>
+                        <Text style={styles.backText}>← Back to Home</Text>
                     </TouchableOpacity>
 
                     <View style={styles.card}>
@@ -87,14 +92,16 @@ const MqttSettingsScreen = ({ navigation }) => {
                         </Text>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>MQTT Broker URL</Text>
+                            <Text style={[styles.label, isUrlFocused && styles.labelFocused]}>MQTT Broker URL</Text>
                             <TextInput
                                 value={brokerUrl}
                                 onChangeText={setBrokerUrl}
                                 placeholder="wss://mqtt.archidtech.in:443/mqtt"
-                                placeholderTextColor={COLORS.muted}
+                                placeholderTextColor="#94a3b8"
                                 autoCapitalize="none"
-                                style={styles.input}
+                                style={[styles.input, isUrlFocused && styles.inputFocused]}
+                                onFocus={() => setIsUrlFocused(true)}
+                                onBlur={() => setIsUrlFocused(false)}
                             />
                             <Text style={styles.note}>
                                 Example: wss://mqtt.archidtech.in:443/mqtt
@@ -107,42 +114,48 @@ const MqttSettingsScreen = ({ navigation }) => {
                         </View>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Username</Text>
+                            <Text style={[styles.label, isUserFocused && styles.labelFocused]}>Username</Text>
                             <TextInput
                                 value={username}
                                 onChangeText={setUsername}
                                 placeholder="MQTT username"
-                                placeholderTextColor={COLORS.muted}
+                                placeholderTextColor="#94a3b8"
                                 autoCapitalize="none"
-                                style={styles.input}
+                                style={[styles.input, isUserFocused && styles.inputFocused]}
+                                onFocus={() => setIsUserFocused(true)}
+                                onBlur={() => setIsUserFocused(false)}
                             />
                         </View>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Password</Text>
+                            <Text style={[styles.label, isPassFocused && styles.labelFocused]}>Password</Text>
                             <TextInput
                                 value={password}
                                 onChangeText={setPassword}
                                 placeholder="MQTT password"
-                                placeholderTextColor={COLORS.muted}
+                                placeholderTextColor="#94a3b8"
                                 secureTextEntry
-                                style={styles.input}
+                                style={[styles.input, isPassFocused && styles.inputFocused]}
+                                onFocus={() => setIsPassFocused(true)}
+                                onBlur={() => setIsPassFocused(false)}
                             />
                         </View>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Client ID Prefix</Text>
+                            <Text style={[styles.label, isClientFocused && styles.labelFocused]}>Client ID Prefix</Text>
                             <TextInput
                                 value={clientIdPrefix}
                                 onChangeText={setClientIdPrefix}
                                 placeholder="archid_motor_mobile"
-                                placeholderTextColor={COLORS.muted}
+                                placeholderTextColor="#94a3b8"
                                 autoCapitalize="none"
-                                style={styles.input}
+                                style={[styles.input, isClientFocused && styles.inputFocused]}
+                                onFocus={() => setIsClientFocused(true)}
+                                onBlur={() => setIsClientFocused(false)}
                             />
                         </View>
 
-                        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                        <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.85}>
                             <Text style={styles.saveText}>Save & Reconnect</Text>
                         </TouchableOpacity>
                     </View>
@@ -164,98 +177,117 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 16,
-        paddingBottom: 30,
+        paddingBottom: 96,
     },
     backButton: {
-        alignSelf: 'flex-start',
-        backgroundColor: COLORS.card,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: COLORS.border,
         marginBottom: 14,
     },
     backText: {
-        color: COLORS.text,
-        fontWeight: '800',
+        color: COLORS.accent,
+        fontWeight: '900',
     },
     card: {
         backgroundColor: COLORS.card,
-        borderRadius: 18,
-        padding: 18,
+        borderRadius: 24,
+        padding: 24,
         borderWidth: 1,
         borderColor: COLORS.border,
         shadowColor: COLORS.shadow,
-        shadowOpacity: 0.07,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 5 },
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 3,
     },
     title: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: '900',
         color: COLORS.text,
+        letterSpacing: 0.3,
     },
     description: {
         color: COLORS.muted,
         marginTop: 6,
-        marginBottom: 20,
+        marginBottom: 24,
         lineHeight: 20,
+        fontSize: 13,
     },
     formGroup: {
-        marginBottom: 16,
+        marginBottom: 20,
     },
     label: {
         color: COLORS.text,
         fontWeight: '900',
-        marginBottom: 7,
+        marginBottom: 8,
+        fontSize: 13,
+        letterSpacing: 0.2,
+    },
+    labelFocused: {
+        color: COLORS.accent,
     },
     input: {
         backgroundColor: '#f8fafc',
         borderWidth: 1,
         borderColor: COLORS.border,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 11,
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 13,
         color: COLORS.text,
-        fontSize: 14,
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    inputFocused: {
+        borderColor: COLORS.accent,
+        backgroundColor: '#ffffff',
     },
     note: {
         color: COLORS.muted,
         fontSize: 11,
         marginTop: 6,
+        fontWeight: '700',
     },
     previewBox: {
-        backgroundColor: '#eef6fb',
-        borderRadius: 12,
-        padding: 12,
+        backgroundColor: COLORS.accentLight,
+        borderRadius: 14,
+        padding: 14,
         borderWidth: 1,
-        borderColor: '#d7edf9',
-        marginBottom: 16,
+        borderColor: '#c7d2fe', // Indigo-200
+        marginBottom: 20,
     },
     previewLabel: {
         color: COLORS.muted,
         fontSize: 11,
         fontWeight: '800',
         marginBottom: 4,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
     },
     previewValue: {
         color: COLORS.text,
         fontWeight: '900',
-        fontSize: 12,
+        fontSize: 13,
     },
     saveButton: {
-        backgroundColor: COLORS.success,
+        backgroundColor: COLORS.accent,
         borderRadius: 14,
-        paddingVertical: 14,
+        paddingVertical: 15,
         alignItems: 'center',
-        marginTop: 4,
+        marginTop: 8,
+        shadowColor: COLORS.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 3,
+        borderBottomWidth: 3,
+        borderBottomColor: '#4f46e5', // Darker Indigo
+        borderColor: '#818cf8',      // Lighter Indigo
+        borderWidth: 1,
     },
     saveText: {
         color: '#fff',
         fontWeight: '900',
-        fontSize: 15,
+        fontSize: 16,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
     },
 });
 

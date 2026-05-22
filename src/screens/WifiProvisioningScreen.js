@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Animated,
+    Easing,
     KeyboardAvoidingView,
     PermissionsAndroid,
     Platform,
@@ -23,6 +25,62 @@ import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
 
 const DEFAULT_SERVER_URL = 'http://192.168.4.1/wifi';
+
+const WifiSignalIndicator = ({ level }) => {
+    const signal = Number(level ?? -999);
+    let activeBars = 1;
+    let color = COLORS.danger;
+
+    if (signal >= -60) {
+        activeBars = 3;
+        color = COLORS.success;
+    } else if (signal >= -70) {
+        activeBars = 2;
+        color = COLORS.warning;
+    }
+
+    return (
+        <View style={styles.wifiSignalContainer}>
+            <View style={[styles.wifiBar, { height: 6, backgroundColor: activeBars >= 1 ? color : '#cbd5e1' }]} />
+            <View style={[styles.wifiBar, { height: 11, backgroundColor: activeBars >= 2 ? color : '#cbd5e1' }]} />
+            <View style={[styles.wifiBar, { height: 16, backgroundColor: activeBars >= 3 ? color : '#cbd5e1' }]} />
+        </View>
+    );
+};
+
+const ScanningPulse = () => {
+    const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+    useEffect(() => {
+        const animation = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.out(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 0.4,
+                    duration: 1000,
+                    easing: Easing.in(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        );
+        animation.start();
+
+        return () => animation.stop();
+    }, [pulseAnim]);
+
+    return (
+        <View style={styles.pulseContainer}>
+            <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }], opacity: Animated.subtract(1, pulseAnim) }]} />
+            <View style={styles.pulseDot} />
+            <Text style={styles.pulseText}>Scanning nearby networks...</Text>
+        </View>
+    );
+};
 
 const WifiProvisioningScreen = ({ navigation }) => {
     const auth = useAuth();
@@ -49,6 +107,10 @@ const WifiProvisioningScreen = ({ navigation }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [message, setMessage] = useState('');
+
+    const [isUrlFocused, setIsUrlFocused] = useState(false);
+    const [isSsidFocused, setIsSsidFocused] = useState(false);
+    const [isPassFocused, setIsPassFocused] = useState(false);
 
     const canSubmit = useMemo(() => {
         return (
@@ -127,24 +189,6 @@ const WifiProvisioningScreen = ({ navigation }) => {
         return Array.from(uniqueNetworks.values()).sort(
             (a, b) => Number(b.level ?? -999) - Number(a.level ?? -999),
         );
-    };
-
-    const getSignalText = level => {
-        const signal = Number(level ?? -999);
-
-        if (signal >= -50) {
-            return 'Excellent';
-        }
-
-        if (signal >= -60) {
-            return 'Good';
-        }
-
-        if (signal >= -70) {
-            return 'Fair';
-        }
-
-        return 'Weak';
     };
 
     const scanWifiNetworks = async () => {
@@ -315,6 +359,11 @@ const WifiProvisioningScreen = ({ navigation }) => {
         }
     };
 
+    const isErrorMessage = message.toLowerCase().includes('fail') ||
+                           message.toLowerCase().includes('error') ||
+                           message.toLowerCase().includes('unable') ||
+                           message.toLowerCase().includes('invalid');
+
     return (
         <View style={styles.root}>
             <HeaderBar
@@ -330,31 +379,39 @@ const WifiProvisioningScreen = ({ navigation }) => {
                 <ScrollView
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}>
+                    
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.navigate('Home')}>
+                        <Text style={styles.backText}>← Back to Home</Text>
+                    </TouchableOpacity>
+
                     <View style={styles.card}>
                         <Text style={styles.title}>Motor WiFi Setup</Text>
                         <Text style={styles.subtitle}>
-                            Select a WiFi network, enter password, and connect the motor to
-                            WiFi.
+                            Select a WiFi network, enter password, and connect the motor to WiFi.
                         </Text>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>Server URL</Text>
+                            <Text style={[styles.label, isUrlFocused && styles.labelFocused]}>Server URL</Text>
                             <TextInput
                                 value={serverUrl}
                                 onChangeText={setServerUrl}
                                 placeholder="http://192.168.4.1/wifi"
-                                placeholderTextColor={COLORS.muted}
+                                placeholderTextColor="#94a3b8"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 keyboardType="url"
-                                style={styles.input}
+                                style={[styles.input, isUrlFocused && styles.inputFocused]}
+                                onFocus={() => setIsUrlFocused(true)}
+                                onBlur={() => setIsUrlFocused(false)}
                             />
                         </View>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>WiFi Network</Text>
+                            <Text style={[styles.label, isSsidFocused && styles.labelFocused]}>WiFi Network</Text>
 
-                            <View style={styles.searchInputWrap}>
+                            <View style={[styles.searchInputWrap, isSsidFocused && styles.searchInputWrapFocused]}>
                                 <TextInput
                                     value={ssid}
                                     onChangeText={value => {
@@ -362,10 +419,12 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                         setSelectedNetwork(null);
                                     }}
                                     placeholder="Select or type WiFi name"
-                                    placeholderTextColor={COLORS.muted}
+                                    placeholderTextColor="#94a3b8"
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     style={styles.searchInput}
+                                    onFocus={() => setIsSsidFocused(true)}
+                                    onBlur={() => setIsSsidFocused(false)}
                                 />
 
                                 <TouchableOpacity
@@ -374,12 +433,16 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                     onPress={scanWifiNetworks}
                                     disabled={isScanning}>
                                     {isScanning ? (
-                                        <ActivityIndicator size="small" color={COLORS.primary} />
+                                        <ActivityIndicator size="small" color={COLORS.accent} />
                                     ) : (
                                         <Text style={styles.searchIcon}>⌕</Text>
                                     )}
                                 </TouchableOpacity>
                             </View>
+
+                            {isScanning && (
+                                <ScanningPulse />
+                            )}
 
                             {isDropdownOpen && (
                                 <View style={styles.dropdownList}>
@@ -411,12 +474,13 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                                             <Text style={styles.networkName} numberOfLines={1}>
                                                                 {network.SSID}
                                                             </Text>
-                                                            <Text style={styles.networkMeta}>
-                                                                Signal: {getSignalText(network.level)}
-                                                            </Text>
+                                                            <Text style={styles.networkBssid}>{network.BSSID || network.bssid || 'WPA2-PSK'}</Text>
                                                         </View>
 
-                                                        {isSelected && <Text style={styles.selectedTick}>✓</Text>}
+                                                        <View style={styles.networkRight}>
+                                                            <WifiSignalIndicator level={network.level} />
+                                                            {isSelected && <Text style={styles.selectedTick}>✓</Text>}
+                                                        </View>
                                                     </TouchableOpacity>
                                                 );
                                             })}
@@ -427,14 +491,16 @@ const WifiProvisioningScreen = ({ navigation }) => {
                         </View>
 
                         <View style={styles.formGroup}>
-                            <Text style={styles.label}>WiFi Password</Text>
+                            <Text style={[styles.label, isPassFocused && styles.labelFocused]}>WiFi Password</Text>
                             <TextInput
                                 value={password}
                                 onChangeText={setPassword}
                                 placeholder="Enter WiFi password"
-                                placeholderTextColor={COLORS.muted}
+                                placeholderTextColor="#94a3b8"
                                 secureTextEntry
-                                style={styles.input}
+                                style={[styles.input, isPassFocused && styles.inputFocused]}
+                                onFocus={() => setIsPassFocused(true)}
+                                onBlur={() => setIsPassFocused(false)}
                             />
                         </View>
 
@@ -460,8 +526,14 @@ const WifiProvisioningScreen = ({ navigation }) => {
                     </View>
 
                     {message ? (
-                        <View style={styles.messageBox}>
-                            <Text style={styles.messageText}>{message}</Text>
+                        <View style={[
+                            styles.messageBox,
+                            isErrorMessage ? { backgroundColor: COLORS.dangerLight, borderColor: '#fecaca' } : null
+                        ]}>
+                            <Text style={[
+                                styles.messageText,
+                                isErrorMessage ? { color: COLORS.danger } : null
+                            ]}>{message}</Text>
                         </View>
                     ) : null}
                 </ScrollView>
@@ -477,205 +549,263 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.page,
     },
-
     keyboard: {
         flex: 1,
     },
-
     content: {
         padding: 16,
-        paddingBottom: 100,
+        paddingBottom: 96,
     },
-
+    backButton: {
+        marginBottom: 14,
+    },
+    backText: {
+        color: COLORS.accent,
+        fontWeight: '900',
+    },
     card: {
         backgroundColor: COLORS.card,
-        borderRadius: 18,
-        padding: 18,
+        borderRadius: 24,
+        padding: 24,
         borderWidth: 1,
         borderColor: COLORS.border,
         shadowColor: COLORS.shadow,
-        shadowOpacity: 0.07,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 5 },
-        elevation: 2,
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 3,
     },
-
     title: {
         color: COLORS.text,
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: '900',
+        letterSpacing: 0.3,
     },
-
     subtitle: {
         color: COLORS.muted,
         marginTop: 6,
-        marginBottom: 18,
+        marginBottom: 24,
         fontSize: 13,
         lineHeight: 20,
     },
-
     formGroup: {
-        marginBottom: 16,
+        marginBottom: 20,
     },
-
     label: {
         color: COLORS.text,
         fontSize: 13,
         fontWeight: '900',
-        marginBottom: 7,
+        marginBottom: 8,
+        letterSpacing: 0.2,
     },
-
+    labelFocused: {
+        color: COLORS.accent,
+    },
     input: {
         backgroundColor: '#f8fafc',
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: COLORS.border,
-        paddingHorizontal: 12,
-        paddingVertical: 11,
+        paddingHorizontal: 16,
+        paddingVertical: 13,
         color: COLORS.text,
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '700',
     },
-
+    inputFocused: {
+        borderColor: COLORS.accent,
+        backgroundColor: '#ffffff',
+    },
     searchInputWrap: {
-        minHeight: 46,
         backgroundColor: '#f8fafc',
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: COLORS.border,
         flexDirection: 'row',
         alignItems: 'center',
         overflow: 'hidden',
     },
-
+    searchInputWrapFocused: {
+        borderColor: COLORS.accent,
+        backgroundColor: '#ffffff',
+    },
     searchInput: {
         flex: 1,
-        paddingHorizontal: 12,
-        paddingVertical: 11,
+        paddingHorizontal: 16,
+        paddingVertical: 13,
         color: COLORS.text,
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '700',
     },
-
     searchButton: {
-        width: 46,
-        height: 46,
+        width: 48,
+        height: 48,
         alignItems: 'center',
         justifyContent: 'center',
         borderLeftWidth: 1,
         borderLeftColor: COLORS.border,
         backgroundColor: '#ffffff',
     },
-
     searchIcon: {
-        color: COLORS.primary,
+        color: COLORS.accent,
         fontSize: 25,
         fontWeight: '900',
         lineHeight: 28,
     },
-
     dropdownList: {
         marginTop: 8,
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: COLORS.border,
         backgroundColor: '#ffffff',
         overflow: 'hidden',
         maxHeight: 240,
+        shadowColor: COLORS.shadow,
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 3,
     },
-
     networkScroll: {
         maxHeight: 240,
     },
-
     networkScrollContent: {
         paddingBottom: 4,
     },
-
     networkItem: {
-        minHeight: 46,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        minHeight: 52,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-
     networkItemSelected: {
-        backgroundColor: '#eef6fb',
+        backgroundColor: COLORS.accentLight,
     },
-
     networkInfo: {
         flex: 1,
         paddingRight: 10,
     },
-
     networkName: {
         color: COLORS.text,
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '900',
     },
-
-    networkMeta: {
+    networkBssid: {
         color: COLORS.muted,
         fontSize: 11,
         marginTop: 2,
+        fontWeight: '600',
     },
-
+    networkRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
     selectedTick: {
         color: COLORS.success,
         fontSize: 17,
         fontWeight: '900',
     },
-
     emptyText: {
         color: COLORS.muted,
-        padding: 12,
+        padding: 16,
         textAlign: 'center',
-        fontSize: 12,
+        fontSize: 13,
     },
-
     connectButton: {
-        minHeight: 48,
+        minHeight: 50,
         borderRadius: 14,
         backgroundColor: COLORS.success,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
+        marginTop: 8,
+        shadowColor: COLORS.success,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 3,
+        borderBottomWidth: 3,
+        borderBottomColor: '#059669', // Darker Emerald
+        borderColor: '#34d399',      // Lighter Emerald
+        borderWidth: 1,
     },
-
     connectIcon: {
         color: '#ffffff',
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: '900',
         marginRight: 8,
     },
-
     connectButtonText: {
         color: '#ffffff',
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '900',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
     },
-
     disabledButton: {
         opacity: 0.6,
     },
-
     messageBox: {
-        backgroundColor: '#e8f8f1',
+        backgroundColor: COLORS.successLight,
         borderRadius: 14,
         padding: 14,
         marginTop: 14,
         borderWidth: 1,
-        borderColor: '#cdeede',
+        borderColor: '#a7f3d0', // Emerald-200
     },
-
     messageText: {
         color: COLORS.success,
         fontWeight: '800',
         lineHeight: 20,
+    },
+    // Scanner Styles
+    pulseContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: COLORS.accentLight,
+        borderRadius: 14,
+        marginTop: 10,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: '#c7d2fe', // Indigo-200
+    },
+    pulseCircle: {
+        position: 'absolute',
+        left: 14,
+        top: 14,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: COLORS.accent,
+    },
+    pulseDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: COLORS.accent,
+    },
+    pulseText: {
+        color: COLORS.accent,
+        fontSize: 13,
+        fontWeight: '900',
+        letterSpacing: 0.3,
+    },
+    // Wifi Signal Component Styles
+    wifiSignalContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 2.5,
+    },
+    wifiBar: {
+        width: 3.5,
+        borderRadius: 1.5,
     },
 });
 
