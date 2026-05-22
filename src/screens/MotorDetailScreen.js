@@ -103,13 +103,15 @@ const MotorDetailScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
 
   const { logout } = useAuth();
-  const { motors, connectionStatus, controlMotor } = useMqtt();
+  const { motors, connectionStatus, controlMotor, selectedIcons, setMotorIcon } = useMqtt();
   const { motorId } = route.params;
 
   const motor = useMemo(
     () => motors.find(item => item.id === motorId),
     [motors, motorId]
   );
+
+  const iconStyle = selectedIcons?.[motorId] || 'DEFAULT';
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -257,6 +259,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
                   size={76}
                   color={motorStatusColor || motorBaseColor}
                   status={motorStatus}
+                  styleName={iconStyle}
                 />
               </View>
             </View>
@@ -386,6 +389,53 @@ const MotorDetailScreen = ({ navigation, route }) => {
           <Text style={styles.infoSmall}>
             Live values update after the motor controller publishes confirmation or status data.
           </Text>
+        </View>
+
+        <View style={styles.selectionPanel}>
+          <Text style={styles.selectionTitle}>PREFERRED MOTOR ICON STYLE</Text>
+          <Text style={styles.selectionSubtitle}>Select the style of pump displayed in your panels</Text>
+          <View style={styles.selectionRow}>
+            {['DEFAULT', 'A', 'B', 'C', 'D'].map(styleOption => {
+              const isSelected = iconStyle === styleOption;
+              const getOptionLabel = (opt) => {
+                switch (opt) {
+                  case 'DEFAULT': return 'Default';
+                  case 'A': return 'Centrifugal';
+                  case 'B': return 'Submersible';
+                  case 'C': return 'Inline';
+                  case 'D': return 'Diaphragm';
+                  default: return opt;
+                }
+              };
+              const optionLabel = getOptionLabel(styleOption);
+              return (
+                <TouchableOpacity
+                  key={styleOption}
+                  style={styles.selectionItem}
+                  onPress={() => setMotorIcon(motorId, styleOption)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.thumbnailContainer,
+                    isSelected && styles.thumbnailContainerActive
+                  ]}>
+                    <MotorPumpIcon
+                      size={44}
+                      color={isSelected ? COLORS.accent : COLORS.muted}
+                      status={motorStatus}
+                      styleName={styleOption}
+                    />
+                  </View>
+                  <Text style={[
+                    styles.selectionItemLabel,
+                    isSelected && styles.selectionItemLabelActive
+                  ]}>
+                    {optionLabel}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
 
@@ -724,6 +774,67 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: COLORS.muted,
     fontSize: 13,
+  },
+
+  selectionPanel: {
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  selectionTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  selectionSubtitle: {
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  selectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  selectionItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  thumbnailContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#f4f7fb',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  thumbnailContainerActive: {
+    borderColor: COLORS.accent,
+    backgroundColor: `${COLORS.accent}08`,
+  },
+  selectionItemLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.muted,
+  },
+  selectionItemLabelActive: {
+    color: COLORS.accent,
+    fontWeight: '900',
   },
 
   missingBox: {
