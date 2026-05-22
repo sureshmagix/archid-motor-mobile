@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Platform,
   RefreshControl,
@@ -14,14 +14,17 @@ import MotorPumpIcon from '../components/MotorPumpIcon';
 import StatusCard from '../components/StatusCard';
 import AppMenu from '../components/AppMenu';
 
-import { COLORS, statusColor } from '../constants/colors';
+import { statusColor } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
+import { useTheme } from '../context/ThemeContext';
 import useScreenMqttActivity from '../hooks/useScreenMqttActivity';
 
 const HomeScreen = ({ navigation }) => {
   const { publishRefresh } = useScreenMqttActivity('Home');
   const [refreshing, setRefreshing] = useState(false);
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const { logout } = useAuth();
 
@@ -39,13 +42,13 @@ const HomeScreen = ({ navigation }) => {
 
   const overallColor =
     faultCount > 0
-      ? COLORS.danger
+      ? colors.danger
       : runningCount > 0
-        ? COLORS.success
-        : COLORS.off;
+        ? colors.success
+        : colors.off;
 
   const networkColor =
-    connectionStatus === 'CONNECTED' ? COLORS.success : COLORS.danger;
+    connectionStatus === 'CONNECTED' ? colors.success : colors.danger;
 
   const networkValue =
     connectionStatus === 'CONNECTED' ? 'Online' : connectionStatus;
@@ -96,8 +99,8 @@ const HomeScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={COLORS.accent}
-            colors={[COLORS.accent]}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }>
         <View style={styles.masterPanel}>
@@ -152,8 +155,8 @@ const HomeScreen = ({ navigation }) => {
                 {
                   backgroundColor:
                     connectionStatus === 'CONNECTED'
-                      ? COLORS.success
-                      : statusColor(connectionStatus),
+                      ? colors.success
+                      : statusColor(connectionStatus, colors),
                 },
               ]}
             />
@@ -180,10 +183,10 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.page,
+    backgroundColor: colors.page,
   },
 
   content: {
@@ -207,14 +210,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: COLORS.text,
+    color: colors.text,
     letterSpacing: 0.2,
   },
 
   sectionMeta: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.muted,
+    color: colors.muted,
   },
 
   grid: {
@@ -226,12 +229,12 @@ const styles = StyleSheet.create({
   terminalBox: {
     marginTop: 8,
     marginBottom: 16,
-    backgroundColor: '#0f172a', // Slate-900 Dark background
+    backgroundColor: colors.isDark ? colors.card : '#0f172a',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#334155', // Slate-700
-    shadowColor: COLORS.shadow,
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b', // Slate-800 divider
+    borderBottomColor: colors.borderLight,
     paddingBottom: 8,
   },
 
@@ -255,7 +258,7 @@ const styles = StyleSheet.create({
   },
 
   terminalTitle: {
-    color: '#94a3b8', // Slate-400
+    color: colors.muted,
     fontWeight: '900',
     fontSize: 10,
     letterSpacing: 1,

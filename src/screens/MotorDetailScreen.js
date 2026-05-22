@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -13,6 +14,7 @@ import MotorPumpIcon from '../components/MotorPumpIcon';
 import { COLORS, statusColor } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
+import { useTheme } from '../context/ThemeContext';
 import FloatingHomeButton from '../components/FloatingHomeButton';
 import useScreenMqttActivity from '../hooks/useScreenMqttActivity';
 
@@ -49,60 +51,54 @@ const normalizeStatus = value => {
   return String(value).trim().toUpperCase();
 };
 
-const getMotorStatusColor = status => {
+const getMotorStatusColor = (status, colors) => {
+  const activeColors = colors || COLORS;
   const text = String(status).toUpperCase();
 
   if (text.includes('ON') || text.includes('RUN') || text.includes('ACTIVE')) {
-    return COLORS.success;
+    return activeColors.success;
   }
 
   if (text.includes('FAULT') || text.includes('TRIP') || text.includes('ERROR')) {
-    return '#e74c3c';
+    return activeColors.danger;
   }
 
   if (text.includes('OFF') || text.includes('STOP')) {
-    return COLORS.off;
+    return activeColors.off;
   }
 
-  return COLORS.accent;
+  return activeColors.accent;
 };
 
-const MetricCard = ({ icon, title, value, subtitle, color }) => (
-  <View style={[styles.metricCard, { borderTopColor: color }]}>
-    <View style={styles.metricHeader}>
-      <View style={[styles.iconBadge, { backgroundColor: `${color}18` }]}>
-        <Text style={[styles.iconText, { color }]}>{icon}</Text>
+const PhaseCard = ({ phase, title, value, unit, icon, color, bgLight, isDark, styles = {} }) => {
+  const resolvedBg = isDark ? `${color}18` : bgLight;
+  return (
+    <View style={[styles.phaseCard, resolvedBg ? { backgroundColor: resolvedBg, borderColor: `${color}33`, borderWidth: 1 } : null]}>
+      <View style={styles.phaseHeader}>
+        <View style={[styles.phaseDot, { backgroundColor: color }]} />
+        <Text style={styles.phaseName}>{phase}</Text>
       </View>
-      <Text style={styles.metricTitle}>{title}</Text>
-    </View>
 
-    <Text style={[styles.metricValue, { color }]}>{value}</Text>
-    <Text style={styles.metricSubtitle}>{subtitle}</Text>
-  </View>
-);
-
-const PhaseCard = ({ phase, title, value, unit, icon, color, bgLight }) => (
-  <View style={[styles.phaseCard, bgLight ? { backgroundColor: bgLight, borderColor: `${color}33`, borderWidth: 1 } : null]}>
-    <View style={styles.phaseHeader}>
-      <View style={[styles.phaseDot, { backgroundColor: color }]} />
-      <Text style={styles.phaseName}>{phase}</Text>
-    </View>
-
-    <View style={styles.phaseBody}>
-      <Text style={[styles.phaseIcon, bgLight ? { backgroundColor: 'rgba(255, 255, 255, 0.75)' } : null]}>{icon}</Text>
-      <View style={styles.phaseTextBox}>
-        <Text style={styles.phaseTitle}>{title}</Text>
-        <Text style={styles.phaseValue}>{formatElectricalValue(value, unit)}</Text>
+      <View style={styles.phaseBody}>
+        <Text style={[styles.phaseIcon, isDark ? { backgroundColor: 'rgba(255, 255, 255, 0.08)', color: '#fff' } : { backgroundColor: 'rgba(255, 255, 255, 0.75)' }]}>{icon}</Text>
+        <View style={styles.phaseTextBox}>
+          <Text style={styles.phaseTitle}>{title}</Text>
+          <Text style={styles.phaseValue}>{formatElectricalValue(value, unit)}</Text>
+        </View>
       </View>
     </View>
-  </View>
-);
+  );
+};
 
 const MotorDetailScreen = ({ navigation, route }) => {
   const { publishRefresh } = useScreenMqttActivity('MotorDetail');
   const [refreshing, setRefreshing] = useState(false);
+  const { width } = useWindowDimensions();
+  const isStacked = width < 480;
 
   const { logout } = useAuth();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getStyles(colors, isStacked), [colors, isStacked]);
   const { motors, connectionStatus, controlMotor, selectedIcons, setMotorIcon } = useMqtt();
   const { motorId } = route.params;
 
@@ -147,7 +143,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
   }
 
   const params = motor.parameters || {};
-  const motorBaseColor = statusColor(motor.status);
+  const motorBaseColor = statusColor(motor.status, colors);
 
   const motorStatus = normalizeStatus(
     getFirstValue(
@@ -158,7 +154,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
     )
   );
 
-  const motorStatusColor = getMotorStatusColor(motorStatus);
+  const motorStatusColor = getMotorStatusColor(motorStatus, colors);
 
   const voltageRV = getFirstValue(
     params.voltageRV,
@@ -224,15 +220,15 @@ const MotorDetailScreen = ({ navigation, route }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={COLORS.accent}
-            colors={[COLORS.accent]}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
           <Text style={styles.backLinkText}>← Back to Home</Text>
         </TouchableOpacity>
 
-        {/* Motor Control Panel + Live Motor Status in one line */}
+        {/* Motor Control Panel + Live Motor Status */}
         <View style={styles.topStatusRow}>
           <View style={styles.controlPanelColumn}>
             <View style={[styles.heroCard, { borderLeftColor: motorStatusColor }]}>
@@ -256,7 +252,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
 
               <View style={styles.motorIconBox}>
                 <MotorPumpIcon
-                  size={76}
+                  size={54}
                   color={motorStatusColor || motorBaseColor}
                   status={motorStatus}
                   styleName={iconStyle}
@@ -298,7 +294,7 @@ const MotorDetailScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Voltage + Current Measurements side by side */}
+        {/* Voltage + Current Measurements */}
         <View style={styles.measurementsRow}>
           <View style={styles.measurementPanel}>
             <View style={styles.measurementHeader}>
@@ -315,6 +311,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 icon="⚡"
                 color="#ef4444"
                 bgLight="#fef2f2"
+                isDark={isDark}
+                styles={styles}
               />
 
               <PhaseCard
@@ -325,6 +323,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 icon="⚡"
                 color="#f59e0b"
                 bgLight="#fffbeb"
+                isDark={isDark}
+                styles={styles}
               />
 
               <PhaseCard
@@ -335,6 +335,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 icon="⚡"
                 color="#2563eb"
                 bgLight="#eff6ff"
+                isDark={isDark}
+                styles={styles}
               />
             </View>
           </View>
@@ -354,6 +356,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 icon="∿"
                 color="#ef4444"
                 bgLight="#fef2f2"
+                isDark={isDark}
+                styles={styles}
               />
 
               <PhaseCard
@@ -364,6 +368,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 icon="∿"
                 color="#f59e0b"
                 bgLight="#fffbeb"
+                isDark={isDark}
+                styles={styles}
               />
 
               <PhaseCard
@@ -374,6 +380,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                 icon="∿"
                 color="#2563eb"
                 bgLight="#eff6ff"
+                isDark={isDark}
+                styles={styles}
               />
             </View>
           </View>
@@ -420,8 +428,8 @@ const MotorDetailScreen = ({ navigation, route }) => {
                     isSelected && styles.thumbnailContainerActive
                   ]}>
                     <MotorPumpIcon
-                      size={44}
-                      color={isSelected ? COLORS.accent : COLORS.muted}
+                      size={34}
+                      color={isSelected ? colors.accent : colors.muted}
                       status={motorStatus}
                       styleName={styleOption}
                     />
@@ -444,48 +452,49 @@ const MotorDetailScreen = ({ navigation, route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors, isStacked) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.page,
+    backgroundColor: colors.page,
   },
   content: {
-    padding: 14,
-    paddingBottom: 96,
+    padding: 10,
+    paddingBottom: 72,
   },
   backLink: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   backLinkText: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '900',
   },
 
   topStatusRow: {
-    flexDirection: 'row',
+    flexDirection: isStacked ? 'column' : 'row',
     alignItems: 'stretch',
-    gap: 12,
-    marginBottom: 14,
+    gap: 10,
+    marginBottom: 10,
   },
   controlPanelColumn: {
-    flex: 1.35,
+    flex: isStacked ? undefined : 1.35,
+    width: isStacked ? '100%' : undefined,
     minWidth: 0,
   },
 
   heroCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 14,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 10,
     borderLeftWidth: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3,
+    marginBottom: 8,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
   heroText: {
     flex: 1,
@@ -493,183 +502,186 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   kicker: {
-    color: COLORS.muted,
-    fontSize: 10,
+    color: colors.muted,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: 'uppercase',
   },
   title: {
-    color: COLORS.text,
-    fontSize: 20,
+    color: colors.text,
+    fontSize: 18,
     fontWeight: '900',
   },
   statusPill: {
     alignSelf: 'flex-start',
-    marginTop: 10,
+    marginTop: 6,
     borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 5,
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 6,
+    height: 6,
     borderRadius: 99,
   },
   statusPillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
   },
   caption: {
-    marginTop: 9,
-    color: COLORS.muted,
-    fontSize: 12,
-    lineHeight: 17,
+    marginTop: 6,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 15,
   },
   motorIconBox: {
-    width: 86,
-    height: 86,
-    borderRadius: 22,
-    backgroundColor: '#f4f7fb',
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: colors.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   actions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   onButton: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderBottomWidth: 3,
-    borderBottomColor: '#059669', // Darker emerald-600
-    borderColor: '#34d399',      // Lighter emerald-400
+    borderBottomColor: colors.isDark ? '#065f46' : '#059669',
+    borderColor: colors.isDark ? '#34d399' : '#34d399',
     borderWidth: 1,
   },
   offButton: {
-    backgroundColor: COLORS.off,
+    backgroundColor: colors.off,
     borderBottomWidth: 3,
-    borderBottomColor: '#475569', // Darker slate-600
-    borderColor: '#94a3b8',      // Lighter slate-400
+    borderBottomColor: colors.isDark ? '#334155' : '#475569',
+    borderColor: colors.isDark ? '#64748b' : '#94a3b8',
     borderWidth: 1,
   },
   actionText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
 
   liveStatusPanel: {
-    flex: 0.85,
+    flex: isStacked ? undefined : 0.85,
+    width: isStacked ? '100%' : undefined,
     minWidth: 0,
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 14,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 10,
     justifyContent: 'space-between',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+    minHeight: isStacked ? 100 : undefined,
   },
   liveStatusIconBadge: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   liveStatusIcon: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '900',
   },
   liveStatusValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '900',
-    marginTop: 12,
+    marginTop: 6,
   },
   liveStatusLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 6,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 3,
   },
 
   measurementsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 16,
-  },
-  measurementPanel: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: '#f8fafc',
-    borderRadius: 20,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e8edf3',
-  },
-  measurementHeader: {
+    flexDirection: isStacked ? 'column' : 'row',
+    alignItems: 'stretch',
+    gap: 10,
     marginBottom: 12,
   },
+  measurementPanel: {
+    flex: isStacked ? undefined : 1,
+    width: isStacked ? '100%' : undefined,
+    minWidth: 0,
+    backgroundColor: colors.borderLight,
+    borderRadius: 16,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  measurementHeader: {
+    marginBottom: 8,
+  },
   measurementTitle: {
-    color: COLORS.text,
-    fontSize: 15,
+    color: colors.text,
+    fontSize: 14,
     fontWeight: '900',
   },
   measurementSubtitle: {
-    color: COLORS.muted,
-    fontSize: 11,
-    marginTop: 3,
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 2,
     fontWeight: '700',
   },
 
   phaseGrid: {
-    gap: 10,
+    gap: 8,
   },
   phaseCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: COLORS.shadow,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 10,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
   phaseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 9,
-    gap: 7,
+    marginBottom: 6,
+    gap: 6,
   },
   phaseDot: {
-    width: 10,
-    height: 10,
+    width: 8,
+    height: 8,
     borderRadius: 99,
   },
   phaseName: {
-    color: COLORS.text,
-    fontSize: 13,
+    color: colors.text,
+    fontSize: 12,
     fontWeight: '900',
   },
   phaseBody: {
@@ -677,37 +689,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   phaseIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#f4f7fb',
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 36,
-    fontSize: 19,
-    marginRight: 9,
+    lineHeight: 28,
+    fontSize: 14,
+    marginRight: 8,
   },
   phaseTextBox: {
     flex: 1,
     minWidth: 0,
   },
   phaseTitle: {
-    color: COLORS.muted,
-    fontSize: 11,
+    color: colors.muted,
+    fontSize: 10,
     fontWeight: '700',
   },
   phaseValue: {
-    color: COLORS.text,
-    fontSize: 18,
+    color: colors.text,
+    fontSize: 16,
     fontWeight: '900',
-    marginTop: 2,
+    marginTop: 1,
   },
 
   infoBox: {
     marginTop: 2,
-    backgroundColor: '#eef1f4',
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: colors.borderLight,
+    borderRadius: 16,
+    padding: 12,
   },
   infoHeader: {
     flexDirection: 'row',
@@ -715,125 +726,128 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   infoIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
   infoTitle: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '900',
+    fontSize: 13,
   },
   infoText: {
-    marginTop: 8,
-    color: COLORS.accent,
+    marginTop: 4,
+    color: colors.accent,
     fontWeight: '900',
+    fontSize: 13,
   },
   infoSmall: {
-    marginTop: 8,
-    color: COLORS.muted,
-    lineHeight: 18,
+    marginTop: 4,
+    color: colors.muted,
+    lineHeight: 15,
+    fontSize: 11,
   },
 
   metricCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 18,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
     borderTopWidth: 4,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   metricHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
-    gap: 10,
+    marginBottom: 10,
+    gap: 8,
   },
   iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconText: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '900',
   },
   metricTitle: {
-    color: COLORS.text,
-    fontSize: 15,
+    color: colors.text,
+    fontSize: 13,
     fontWeight: '900',
   },
   metricValue: {
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: '900',
   },
   metricSubtitle: {
-    marginTop: 4,
-    color: COLORS.muted,
-    fontSize: 13,
+    marginTop: 2,
+    color: colors.muted,
+    fontSize: 11,
   },
 
   selectionPanel: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 16,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 6 },
+    borderColor: colors.border,
+    marginBottom: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
   selectionTitle: {
-    color: COLORS.text,
-    fontSize: 14,
+    color: colors.text,
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   selectionSubtitle: {
-    color: COLORS.muted,
-    fontSize: 11,
-    marginTop: 2,
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 1,
     fontWeight: '700',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   selectionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   selectionItem: {
     flex: 1,
     alignItems: 'center',
   },
   thumbnailContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    backgroundColor: '#f4f7fb',
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: colors.borderLight,
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   thumbnailContainerActive: {
-    borderColor: COLORS.accent,
-    backgroundColor: `${COLORS.accent}08`,
+    borderColor: colors.accent,
+    backgroundColor: `${colors.accent}08`,
   },
   selectionItemLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    color: COLORS.muted,
+    color: colors.muted,
   },
   selectionItemLabelActive: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '900',
   },
 
@@ -843,12 +857,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   missingText: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '800',
     marginBottom: 12,
   },
   backButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 18,

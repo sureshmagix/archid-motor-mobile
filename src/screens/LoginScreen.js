@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -9,11 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {COLORS} from '../constants/colors';
-import {useAuth} from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const LoginScreen = () => {
-  const {login, loginError} = useAuth();
+  const { login, loginError } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin');
   const [isUserFocused, setIsUserFocused] = useState(false);
@@ -74,23 +77,23 @@ const LoginScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: colors.primaryDark,
     padding: 24,
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
-    shadowColor: COLORS.shadow,
-    shadowOffset: {width: 0, height: 12},
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
     elevation: 10,
@@ -106,7 +109,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
@@ -120,13 +123,13 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontSize: 22,
     fontWeight: '900',
-    color: COLORS.text,
+    color: colors.text,
     letterSpacing: 1.5,
   },
   subtitle: {
     marginTop: 4,
     marginBottom: 28,
-    color: COLORS.muted,
+    color: colors.muted,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -135,8 +138,8 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    color: COLORS.danger,
-    backgroundColor: COLORS.dangerLight,
+    color: colors.danger,
+    backgroundColor: colors.dangerLight,
     borderRadius: 12,
     marginBottom: 20,
     textAlign: 'center',
@@ -150,39 +153,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 13,
     fontWeight: '900',
     marginBottom: 8,
     letterSpacing: 0.2,
   },
   labelFocused: {
-    color: COLORS.accent,
+    color: colors.accent,
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 13,
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 15,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.borderLight,
     fontWeight: '700',
   },
   inputFocused: {
-    borderColor: COLORS.accent,
-    backgroundColor: '#ffffff',
+    borderColor: colors.accent,
+    backgroundColor: colors.card,
   },
   button: {
     width: '100%',
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: COLORS.accent,
-    shadowOffset: {width: 0, height: 4},
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 3,
@@ -196,7 +199,7 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 24,
     fontSize: 11,
-    color: COLORS.muted,
+    color: colors.muted,
     fontWeight: '700',
     letterSpacing: 0.2,
   },

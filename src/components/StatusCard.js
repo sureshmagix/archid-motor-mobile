@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const StatusCard = ({
   title,
   value,
   caption,
-  accentColor = COLORS.accent || '#6366f1',
+  accentColor,
   compact = false,
   children,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const activeAccentColor = accentColor || colors.accent;
+
   return (
     <View style={[styles.card, compact && styles.compactCard]}>
       <View style={styles.topRow}>
@@ -19,7 +22,7 @@ const StatusCard = ({
             {title}
           </Text>
 
-          <Text style={[styles.value, { color: accentColor }]} numberOfLines={1}>
+          <Text style={[styles.value, { color: activeAccentColor }]} numberOfLines={1}>
             {value}
           </Text>
         </View>
@@ -28,14 +31,14 @@ const StatusCard = ({
           style={[
             styles.iconBox,
             {
-              backgroundColor: `${accentColor}10`, // extra translucent
-              borderColor: `${accentColor}25`,
+              backgroundColor: `${activeAccentColor}10`, // extra translucent
+              borderColor: `${activeAccentColor}25`,
             },
           ]}>
           {children ? (
             children
           ) : (
-            <View style={[styles.statusDot, { backgroundColor: accentColor }]} />
+            <View style={[styles.statusDot, { backgroundColor: activeAccentColor }]} />
           )}
         </View>
       </View>
@@ -47,18 +50,18 @@ const StatusCard = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   card: {
     width: '48%',
     minHeight: 114,
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     overflow: 'hidden',
 
-    shadowColor: COLORS.shadow,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -83,7 +86,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 11,
     fontWeight: '900',
-    color: COLORS.muted,
+    color: colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 6,
@@ -99,7 +102,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 11,
     lineHeight: 16,
-    color: COLORS.muted,
+    color: colors.muted,
     fontWeight: '700',
   },
 

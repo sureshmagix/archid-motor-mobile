@@ -23,32 +23,35 @@ import FloatingHomeButton from '../components/FloatingHomeButton';
 import { COLORS } from '../constants/colors';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
+import { useTheme } from '../context/ThemeContext';
 
 const DEFAULT_SERVER_URL = 'http://192.168.4.1/wifi';
 
-const WifiSignalIndicator = ({ level }) => {
+const WifiSignalIndicator = ({ level, colors = COLORS, styles = {} }) => {
     const signal = Number(level ?? -999);
     let activeBars = 1;
-    let color = COLORS.danger;
+    let color = colors.danger;
 
     if (signal >= -60) {
         activeBars = 3;
-        color = COLORS.success;
+        color = colors.success;
     } else if (signal >= -70) {
         activeBars = 2;
-        color = COLORS.warning;
+        color = colors.warning;
     }
+
+    const inactiveBarColor = colors.isDark ? '#475569' : '#cbd5e1';
 
     return (
         <View style={styles.wifiSignalContainer}>
-            <View style={[styles.wifiBar, { height: 6, backgroundColor: activeBars >= 1 ? color : '#cbd5e1' }]} />
-            <View style={[styles.wifiBar, { height: 11, backgroundColor: activeBars >= 2 ? color : '#cbd5e1' }]} />
-            <View style={[styles.wifiBar, { height: 16, backgroundColor: activeBars >= 3 ? color : '#cbd5e1' }]} />
+            <View style={[styles.wifiBar, { height: 6, backgroundColor: activeBars >= 1 ? color : inactiveBarColor }]} />
+            <View style={[styles.wifiBar, { height: 11, backgroundColor: activeBars >= 2 ? color : inactiveBarColor }]} />
+            <View style={[styles.wifiBar, { height: 16, backgroundColor: activeBars >= 3 ? color : inactiveBarColor }]} />
         </View>
     );
 };
 
-const ScanningPulse = () => {
+const ScanningPulse = ({ colors = COLORS, styles = {} }) => {
     const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
     useEffect(() => {
@@ -85,6 +88,8 @@ const ScanningPulse = () => {
 const WifiProvisioningScreen = ({ navigation }) => {
     const auth = useAuth();
     const { logout } = auth;
+    const { colors, isDark } = useTheme();
+    const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
     const { connectionStatus } = useMqtt();
 
@@ -398,7 +403,7 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                 value={serverUrl}
                                 onChangeText={setServerUrl}
                                 placeholder="http://192.168.4.1/wifi"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.muted}
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 keyboardType="url"
@@ -419,7 +424,7 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                         setSelectedNetwork(null);
                                     }}
                                     placeholder="Select or type WiFi name"
-                                    placeholderTextColor="#94a3b8"
+                                    placeholderTextColor={colors.muted}
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     style={styles.searchInput}
@@ -433,7 +438,7 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                     onPress={scanWifiNetworks}
                                     disabled={isScanning}>
                                     {isScanning ? (
-                                        <ActivityIndicator size="small" color={COLORS.accent} />
+                                        <ActivityIndicator size="small" color={colors.accent} />
                                     ) : (
                                         <Text style={styles.searchIcon}>⌕</Text>
                                     )}
@@ -441,7 +446,7 @@ const WifiProvisioningScreen = ({ navigation }) => {
                             </View>
 
                             {isScanning && (
-                                <ScanningPulse />
+                                <ScanningPulse colors={colors} styles={styles} />
                             )}
 
                             {isDropdownOpen && (
@@ -478,7 +483,7 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                                         </View>
 
                                                         <View style={styles.networkRight}>
-                                                            <WifiSignalIndicator level={network.level} />
+                                                            <WifiSignalIndicator level={network.level} colors={colors} styles={styles} />
                                                             {isSelected && <Text style={styles.selectedTick}>✓</Text>}
                                                         </View>
                                                     </TouchableOpacity>
@@ -496,7 +501,7 @@ const WifiProvisioningScreen = ({ navigation }) => {
                                 value={password}
                                 onChangeText={setPassword}
                                 placeholder="Enter WiFi password"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.muted}
                                 secureTextEntry
                                 style={[styles.input, isPassFocused && styles.inputFocused]}
                                 onFocus={() => setIsPassFocused(true)}
@@ -528,13 +533,13 @@ const WifiProvisioningScreen = ({ navigation }) => {
                     {message ? (
                         <View style={[
                             styles.messageBox,
-                            isErrorMessage ? { backgroundColor: COLORS.dangerLight, borderColor: '#fecaca' } : null
+                            isErrorMessage ? { backgroundColor: colors.dangerLight, borderColor: isDark ? '#7f1d1d' : '#fecaca' } : null
                         ]}>
-                            <Text style={[
-                                styles.messageText,
-                                isErrorMessage ? { color: COLORS.danger } : null
-                            ]}>{message}</Text>
-                        </View>
+                        <Text style={[
+                            styles.messageText,
+                            isErrorMessage ? { color: colors.danger } : null
+                        ]}>{message}</Text>
+                    </View>
                     ) : null}
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -544,10 +549,10 @@ const WifiProvisioningScreen = ({ navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors, isDark) => StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: COLORS.page,
+        backgroundColor: colors.page,
     },
     keyboard: {
         flex: 1,
@@ -560,29 +565,29 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     backText: {
-        color: COLORS.accent,
+        color: colors.accent,
         fontWeight: '900',
     },
     card: {
-        backgroundColor: COLORS.card,
+        backgroundColor: colors.card,
         borderRadius: 24,
         padding: 24,
         borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: COLORS.shadow,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
         shadowOpacity: 0.05,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 3,
     },
     title: {
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 22,
         fontWeight: '900',
         letterSpacing: 0.3,
     },
     subtitle: {
-        color: COLORS.muted,
+        color: colors.muted,
         marginTop: 6,
         marginBottom: 24,
         fontSize: 13,
@@ -592,48 +597,48 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     label: {
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 13,
         fontWeight: '900',
         marginBottom: 8,
         letterSpacing: 0.2,
     },
     labelFocused: {
-        color: COLORS.accent,
+        color: colors.accent,
     },
     input: {
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.borderLight,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: colors.border,
         paddingHorizontal: 16,
         paddingVertical: 13,
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 15,
         fontWeight: '700',
     },
     inputFocused: {
-        borderColor: COLORS.accent,
-        backgroundColor: '#ffffff',
+        borderColor: colors.accent,
+        backgroundColor: colors.card,
     },
     searchInputWrap: {
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.borderLight,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: colors.border,
         flexDirection: 'row',
         alignItems: 'center',
         overflow: 'hidden',
     },
     searchInputWrapFocused: {
-        borderColor: COLORS.accent,
-        backgroundColor: '#ffffff',
+        borderColor: colors.accent,
+        backgroundColor: colors.card,
     },
     searchInput: {
         flex: 1,
         paddingHorizontal: 16,
         paddingVertical: 13,
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 15,
         fontWeight: '700',
     },
@@ -643,11 +648,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         borderLeftWidth: 1,
-        borderLeftColor: COLORS.border,
-        backgroundColor: '#ffffff',
+        borderLeftColor: colors.border,
+        backgroundColor: colors.borderLight,
     },
     searchIcon: {
-        color: COLORS.accent,
+        color: colors.accent,
         fontSize: 25,
         fontWeight: '900',
         lineHeight: 28,
@@ -656,11 +661,11 @@ const styles = StyleSheet.create({
         marginTop: 8,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: COLORS.border,
-        backgroundColor: '#ffffff',
+        borderColor: colors.border,
+        backgroundColor: colors.card,
         overflow: 'hidden',
         maxHeight: 240,
-        shadowColor: COLORS.shadow,
+        shadowColor: colors.shadow,
         shadowOpacity: 0.05,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 6 },
@@ -677,25 +682,25 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
+        borderBottomColor: colors.border,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
     },
     networkItemSelected: {
-        backgroundColor: COLORS.accentLight,
+        backgroundColor: colors.accentLight,
     },
     networkInfo: {
         flex: 1,
         paddingRight: 10,
     },
     networkName: {
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 14,
         fontWeight: '900',
     },
     networkBssid: {
-        color: COLORS.muted,
+        color: colors.muted,
         fontSize: 11,
         marginTop: 2,
         fontWeight: '600',
@@ -706,12 +711,12 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     selectedTick: {
-        color: COLORS.success,
+        color: colors.success,
         fontSize: 17,
         fontWeight: '900',
     },
     emptyText: {
-        color: COLORS.muted,
+        color: colors.muted,
         padding: 16,
         textAlign: 'center',
         fontSize: 13,
@@ -719,19 +724,19 @@ const styles = StyleSheet.create({
     connectButton: {
         minHeight: 50,
         borderRadius: 14,
-        backgroundColor: COLORS.success,
+        backgroundColor: colors.success,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
         marginTop: 8,
-        shadowColor: COLORS.success,
+        shadowColor: colors.success,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 10,
         elevation: 3,
         borderBottomWidth: 3,
-        borderBottomColor: '#059669', // Darker Emerald
-        borderColor: '#34d399',      // Lighter Emerald
+        borderBottomColor: isDark ? '#065f46' : '#059669', // Darker Emerald
+        borderColor: isDark ? '#10b981' : '#34d399',      // Lighter Emerald
         borderWidth: 1,
     },
     connectIcon: {
@@ -751,30 +756,29 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     messageBox: {
-        backgroundColor: COLORS.successLight,
+        backgroundColor: colors.successLight,
         borderRadius: 14,
         padding: 14,
         marginTop: 14,
         borderWidth: 1,
-        borderColor: '#a7f3d0', // Emerald-200
+        borderColor: isDark ? '#065f46' : '#a7f3d0', // Emerald-950 or Emerald-200
     },
     messageText: {
-        color: COLORS.success,
+        color: colors.success,
         fontWeight: '800',
         lineHeight: 20,
     },
-    // Scanner Styles
     pulseContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 14,
         paddingHorizontal: 16,
-        backgroundColor: COLORS.accentLight,
+        backgroundColor: colors.accentLight,
         borderRadius: 14,
         marginTop: 10,
         gap: 12,
         borderWidth: 1,
-        borderColor: '#c7d2fe', // Indigo-200
+        borderColor: isDark ? '#312e81' : '#c7d2fe', // Indigo-950 or Indigo-200
     },
     pulseCircle: {
         position: 'absolute',
@@ -783,21 +787,20 @@ const styles = StyleSheet.create({
         width: 18,
         height: 18,
         borderRadius: 9,
-        backgroundColor: COLORS.accent,
+        backgroundColor: colors.accent,
     },
     pulseDot: {
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: COLORS.accent,
+        backgroundColor: colors.accent,
     },
     pulseText: {
-        color: COLORS.accent,
+        color: colors.accent,
         fontSize: 13,
         fontWeight: '900',
         letterSpacing: 0.3,
     },
-    // Wifi Signal Component Styles
     wifiSignalContainer: {
         flexDirection: 'row',
         alignItems: 'flex-end',

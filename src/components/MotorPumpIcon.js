@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import { COLORS } from '../constants/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -38,8 +39,18 @@ const MotorPumpIcon = ({ size = 64, color = COLORS.off, status = 'OFF', styleNam
     };
   }, [isRunning, flowAnim]);
 
-  const flowColor = '#06b6d4'; // Cyan active flow
-  const pipeBgColor = '#cbd5e1';
+  let activeColors = COLORS;
+  try {
+    const theme = useTheme();
+    if (theme && theme.colors) {
+      activeColors = theme.colors;
+    }
+  } catch (e) {
+    // Fail silently, fallback to COLORS
+  }
+
+  const flowColor = activeColors.accent === '#6366f1' ? '#06b6d4' : activeColors.accent; // Cyan on light, or accent on dark
+  const pipeBgColor = activeColors.border;
 
   // 1. DEFAULT: The original pump shape with a bottom horizontal flow pipe
   const renderDefault = () => (

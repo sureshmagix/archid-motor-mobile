@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const AppMenu = ({ navigation }) => {
+    const { colors } = useTheme();
+    const styles = useMemo(() => getStyles(colors), [colors]);
+
     return (
         <View style={styles.container}>
             <TouchableOpacity
@@ -27,19 +29,19 @@ const AppMenu = ({ navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         marginTop: 10,
-        backgroundColor: COLORS.card,
+        backgroundColor: colors.card,
         borderRadius: 99,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: colors.border,
         paddingVertical: 10,
         paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: COLORS.shadow,
+        shadowColor: colors.shadow,
         shadowOpacity: 0.05,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
@@ -60,7 +62,7 @@ const styles = StyleSheet.create({
     },
 
     menuText: {
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 13,
         fontWeight: '800',
         letterSpacing: 0.2,
@@ -69,7 +71,7 @@ const styles = StyleSheet.create({
     divider: {
         width: 1,
         height: 20,
-        backgroundColor: COLORS.border,
+        backgroundColor: colors.border,
     },
 });
 

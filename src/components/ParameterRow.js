@@ -1,17 +1,22 @@
-import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
-import {COLORS} from '../constants/colors';
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
-const ParameterRow = ({label, value}) => (
-  <View style={styles.row}>
-    <Text style={styles.label}>{label}</Text>
-    <Text style={styles.value}>{value}</Text>
-  </View>
-);
+const ParameterRow = ({ label, value }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
-const styles = StyleSheet.create({
+  return (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+};
+
+const getStyles = (colors) => StyleSheet.create({
   row: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -20,14 +25,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   label: {
-    color: COLORS.muted,
+    color: colors.muted,
     fontWeight: '700',
   },
   value: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: '900',
   },
 });

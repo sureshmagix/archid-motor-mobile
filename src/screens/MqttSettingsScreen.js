@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import HeaderBar from '../components/HeaderBar';
-import { COLORS } from '../constants/colors';
+import { useTheme } from '../context/ThemeContext';
 import { MQTT_CONFIG, updateMqttConfig } from '../constants/mqttConfig';
 import { useAuth } from '../context/AuthContext';
 import { useMqtt } from '../context/MqttContext';
@@ -22,6 +22,8 @@ import FloatingHomeButton from '../components/FloatingHomeButton';
 const MqttSettingsScreen = ({ navigation }) => {
     const { logout } = useAuth();
     const { connectionStatus } = useMqtt();
+    const { theme, setThemeMode, colors } = useTheme();
+    const styles = useMemo(() => getStyles(colors), [colors]);
 
     const [brokerUrl, setBrokerUrl] = useState(MQTT_CONFIG.brokerUrl);
     const [username, setUsername] = useState(MQTT_CONFIG.username);
@@ -85,6 +87,7 @@ const MqttSettingsScreen = ({ navigation }) => {
                         <Text style={styles.backText}>← Back to Home</Text>
                     </TouchableOpacity>
 
+                    {/* MQTT Configuration Card */}
                     <View style={styles.card}>
                         <Text style={styles.title}>MQTT Configuration</Text>
                         <Text style={styles.description}>
@@ -97,7 +100,7 @@ const MqttSettingsScreen = ({ navigation }) => {
                                 value={brokerUrl}
                                 onChangeText={setBrokerUrl}
                                 placeholder="wss://mqtt.archidtech.in:443/mqtt"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.muted}
                                 autoCapitalize="none"
                                 style={[styles.input, isUrlFocused && styles.inputFocused]}
                                 onFocus={() => setIsUrlFocused(true)}
@@ -119,7 +122,7 @@ const MqttSettingsScreen = ({ navigation }) => {
                                 value={username}
                                 onChangeText={setUsername}
                                 placeholder="MQTT username"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.muted}
                                 autoCapitalize="none"
                                 style={[styles.input, isUserFocused && styles.inputFocused]}
                                 onFocus={() => setIsUserFocused(true)}
@@ -133,7 +136,7 @@ const MqttSettingsScreen = ({ navigation }) => {
                                 value={password}
                                 onChangeText={setPassword}
                                 placeholder="MQTT password"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.muted}
                                 secureTextEntry
                                 style={[styles.input, isPassFocused && styles.inputFocused]}
                                 onFocus={() => setIsPassFocused(true)}
@@ -147,7 +150,7 @@ const MqttSettingsScreen = ({ navigation }) => {
                                 value={clientIdPrefix}
                                 onChangeText={setClientIdPrefix}
                                 placeholder="archid_motor_mobile"
-                                placeholderTextColor="#94a3b8"
+                                placeholderTextColor={colors.muted}
                                 autoCapitalize="none"
                                 style={[styles.input, isClientFocused && styles.inputFocused]}
                                 onFocus={() => setIsClientFocused(true)}
@@ -159,6 +162,45 @@ const MqttSettingsScreen = ({ navigation }) => {
                             <Text style={styles.saveText}>Save & Reconnect</Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* Theme Preference Settings Card */}
+                    <View style={[styles.card, styles.themeCard]}>
+                        <Text style={styles.title}>Theme Preference</Text>
+                        <Text style={styles.description}>
+                            Choose how Archid Motor Mobile looks on your device.
+                        </Text>
+
+                        <View style={styles.themeOptionsRow}>
+                            {[
+                                { mode: 'light', label: 'Light', icon: '☀️' },
+                                { mode: 'dark', label: 'Dark', icon: '🌙' },
+                                { mode: 'system', label: 'System', icon: '⚙️' },
+                            ].map((option) => {
+                                const isSelected = theme === option.mode;
+                                return (
+                                    <TouchableOpacity
+                                        key={option.mode}
+                                        style={[
+                                            styles.themeOption,
+                                            isSelected && styles.themeOptionActive,
+                                        ]}
+                                        onPress={() => setThemeMode(option.mode)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={[styles.themeOptionIcon, isSelected && styles.themeOptionIconActive]}>
+                                            {option.icon}
+                                        </Text>
+                                        <Text style={[
+                                            styles.themeOptionLabel,
+                                            isSelected && styles.themeOptionLabelActive,
+                                        ]}>
+                                            {option.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
             <FloatingHomeButton navigation={navigation} />
@@ -167,10 +209,10 @@ const MqttSettingsScreen = ({ navigation }) => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: COLORS.page,
+        backgroundColor: colors.page,
     },
     keyboard: {
         flex: 1,
@@ -183,29 +225,32 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     backText: {
-        color: COLORS.accent,
+        color: colors.accent,
         fontWeight: '900',
     },
     card: {
-        backgroundColor: COLORS.card,
+        backgroundColor: colors.card,
         borderRadius: 24,
         padding: 24,
         borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: COLORS.shadow,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
         shadowOpacity: 0.05,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 3,
     },
+    themeCard: {
+        marginTop: 16,
+    },
     title: {
         fontSize: 22,
         fontWeight: '900',
-        color: COLORS.text,
+        color: colors.text,
         letterSpacing: 0.3,
     },
     description: {
-        color: COLORS.muted,
+        color: colors.muted,
         marginTop: 6,
         marginBottom: 24,
         lineHeight: 20,
@@ -215,46 +260,46 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     label: {
-        color: COLORS.text,
+        color: colors.text,
         fontWeight: '900',
         marginBottom: 8,
         fontSize: 13,
         letterSpacing: 0.2,
     },
     labelFocused: {
-        color: COLORS.accent,
+        color: colors.accent,
     },
     input: {
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.borderLight,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: colors.border,
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 13,
-        color: COLORS.text,
+        color: colors.text,
         fontSize: 15,
         fontWeight: '700',
     },
     inputFocused: {
-        borderColor: COLORS.accent,
-        backgroundColor: '#ffffff',
+        borderColor: colors.accent,
+        backgroundColor: colors.card,
     },
     note: {
-        color: COLORS.muted,
+        color: colors.muted,
         fontSize: 11,
         marginTop: 6,
         fontWeight: '700',
     },
     previewBox: {
-        backgroundColor: COLORS.accentLight,
+        backgroundColor: colors.accentLight,
         borderRadius: 14,
         padding: 14,
         borderWidth: 1,
-        borderColor: '#c7d2fe', // Indigo-200
+        borderColor: colors.isDark ? '#312e81' : '#c7d2fe', // Indigo-950 (Indigo-900 border) or Indigo-200
         marginBottom: 20,
     },
     previewLabel: {
-        color: COLORS.muted,
+        color: colors.muted,
         fontSize: 11,
         fontWeight: '800',
         marginBottom: 4,
@@ -262,24 +307,24 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     previewValue: {
-        color: COLORS.text,
+        color: colors.text,
         fontWeight: '900',
         fontSize: 13,
     },
     saveButton: {
-        backgroundColor: COLORS.accent,
+        backgroundColor: colors.accent,
         borderRadius: 14,
         paddingVertical: 15,
         alignItems: 'center',
         marginTop: 8,
-        shadowColor: COLORS.accent,
+        shadowColor: colors.accent,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 10,
         elevation: 3,
         borderBottomWidth: 3,
-        borderBottomColor: '#4f46e5', // Darker Indigo
-        borderColor: '#818cf8',      // Lighter Indigo
+        borderBottomColor: colors.isDark ? '#4338ca' : '#4f46e5', // Darker Indigo
+        borderColor: colors.isDark ? '#6366f1' : '#818cf8',      // Lighter Indigo
         borderWidth: 1,
     },
     saveText: {
@@ -288,6 +333,41 @@ const styles = StyleSheet.create({
         fontSize: 16,
         letterSpacing: 0.5,
         textTransform: 'uppercase',
+    },
+    themeOptionsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+    themeOption: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        borderRadius: 14,
+        backgroundColor: colors.borderLight,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    themeOptionActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.isDark ? `${colors.accent}15` : `${colors.accent}08`,
+    },
+    themeOptionIcon: {
+        fontSize: 20,
+        marginBottom: 6,
+    },
+    themeOptionIconActive: {
+        // We let the emoji icon itself speak, or add visual distinction
+    },
+    themeOptionLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.muted,
+    },
+    themeOptionLabelActive: {
+        color: colors.accent,
+        fontWeight: '900',
     },
 });
 

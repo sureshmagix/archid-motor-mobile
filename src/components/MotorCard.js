@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { COLORS, statusColor } from '../constants/colors';
+import { statusColor } from '../constants/colors';
+import { useTheme } from '../context/ThemeContext';
 import MotorPumpIcon from './MotorPumpIcon';
 import { useMqtt } from '../context/MqttContext';
 
 const MotorCard = ({ motor, onPress }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { selectedIcons } = useMqtt();
-  const color = statusColor(motor.status);
+  const color = statusColor(motor.status, colors);
   const iconStyle = selectedIcons?.[motor.id] || 'DEFAULT';
 
   return (
@@ -36,18 +39,18 @@ const MotorCard = ({ motor, onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
   card: {
     width: '48%',
     minHeight: 198,
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 14,
     borderTopWidth: 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: 16,
-    shadowColor: COLORS.shadow,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -65,13 +68,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   name: {
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: -0.2,
   },
   subText: {
-    color: COLORS.muted,
+    color: colors.muted,
     fontSize: 10,
     fontWeight: '700',
     marginTop: 2,
@@ -101,22 +104,22 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   footer: {
-    backgroundColor: COLORS.page,
+    backgroundColor: colors.page,
     borderRadius: 12,
     paddingVertical: 7,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: colors.borderLight,
   },
   footerLabel: {
     fontSize: 9,
     fontWeight: '900',
-    color: COLORS.muted,
+    color: colors.muted,
     letterSpacing: 0.5,
   },
   footerValue: {
     marginTop: 1,
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 11,
     fontWeight: '800',
   },
